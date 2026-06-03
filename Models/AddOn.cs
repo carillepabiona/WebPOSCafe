@@ -18,5 +18,7 @@ namespace WebPOSCafe.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
+        public ICollection<MenuItemAddon> MenuItemAddons { get; set; } = new List<MenuItemAddon>();
+
     }
 }

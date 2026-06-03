@@ -1,0 +1,725 @@
+﻿@page
+@model WebPOSCafe.Pages.Menu.MenuDisplayModel
+@{
+    Layout = null;
+    var categoriesJson = System.Text.Json.JsonSerializer.Serialize(Model.Categories.Select(c => new
+    {
+        id = c.Id,
+        name = c.CategoryName,
+        color = c.Color,
+        displayOrder = c.DisplayOrder
+    }));
+    var menuItemsJson = System.Text.Json.JsonSerializer.Serialize(Model.MenuItems.Select(m => new
+    {
+        id = m.Id,
+        categoryId = m.CategoryId,
+        name = m.Name,
+        description = m.Description,
+        price = m.Price,
+        preparationTime = m.PreparationTime,
+        isAvailable = m.IsAvailable,
+        imageBase64 = m.ImageBase64,
+        imageMimeType = m.ImageMimeType,
+        displayOrder = m.DisplayOrder,
+        customizations = m.MenuItemCustomizations.Select(mic => new
+        {
+            id = mic.Customization.Id,
+            name = mic.Customization.Name,
+            type = mic.Customization.Type,
+            isRequired = mic.Customization.IsRequired,
+            displayOrder = mic.Customization.DisplayOrder,
+            options = mic.Customization.Options.OrderBy(o => o.DisplayOrder).Select(o => new
+            {
+                id = o.Id,
+                label = o.OptionLabel,
+                priceModifier = o.PriceModifier,
+                isDefault = o.IsDefault
+            })
+        }),
+        addons = m.MenuItemAddons.Select(mia => new
+        {
+            id = mia.Addon.Id,
+            name = mia.Addon.Name,
+            price = mia.Addon.Price,
+            isActive = mia.Addon.IsActive
+        })
+    }));
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verso  — Menu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+   <link rel="stylesheet" href="~/css/customer-menu.css" />
+</head>
+<body>
+
+    <!-- NAV -->
+    <nav class="nav">
+        <a class="nav-brand" href="#">
+            <span class="logo-dot"></span> Verso Cafe
+        </a>
+        <div class="nav-actions">
+            <button class="btn-orders" onclick="openOrders()">
+                <span class="orders-dot" id="orders-dot"></span>
+                My Orders
+            </button>
+            <button class="btn-cart" onclick="openCart()">
+                🛒 Cart
+                <span class="cart-badge" id="cart-badge">0</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+        <h1 class="hero-title">What are you craving?</h1>
+        <p class="hero-sub">Fresh brews & bites, made with love</p>
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search menu items..." oninput="filterItems(this.value)" />
+        </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+        <!-- Horizontal Categories -->
+        <div class="categories-bar">
+            <button class="cat-btn active" onclick="scrollToAll(this)" data-cat="all">
+                <span class="cat-dot" style="background:#E8611A"></span>
+                All Items
+            </button>
+
+            <div id="cat-buttons" class="categories-scroll"></div>
+        </div>
+
+        <!-- Menu Content -->
+        <div class="menu-content" id="menu-content"></div>
+
+    </div>
+
+    <!-- ── ITEM DETAIL MODAL ── -->
+    <div class="modal-overlay" id="item-modal">
+        <div class="modal" style="max-width:520px">
+            <div class="modal-img" id="modal-img">
+                <span class="img-placeholder" id="modal-img-placeholder">☕</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="modal-name"></h2>
+                    <span class="modal-price" id="modal-price"></span>
+                </div>
+                <p class="modal-desc" id="modal-desc"></p>
+                <div id="customizations-section"></div>
+                <div id="addons-section"></div>
+                <div class="qty-row">
+                    <span class="qty-label">Quantity</span>
+                    <div class="qty-control">
+                        <button class="qty-btn" onclick="changeQty(-1)">−</button>
+                        <span class="qty-val" id="qty-val">1</span>
+                        <button class="qty-btn" onclick="changeQty(1)">+</button>
+                    </div>
+                </div>
+                <div class="notes-field">
+                    <label for="item-notes">Special instructions</label>
+                    <textarea id="item-notes" rows="2" placeholder="E.g. extra hot, less sugar..."></textarea>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <button class="btn-close" onclick="closeItemModal()" style="width:48px;height:48px;border-radius:12px;font-size:1.2rem;border:1.5px solid var(--border-strong);">✕</button>
+                    <button class="btn-add-to-cart" id="btn-add-cart" onclick="addToCart()">
+                        Add to Cart — <span id="btn-price">₱0.00</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── CART MODAL ── -->
+    <div class="modal-overlay" id="cart-modal">
+        <div class="modal cart-modal">
+            <div class="cart-header">
+                <h2 class="cart-title">Your Cart</h2>
+                <button class="btn-close" onclick="closeCart()">✕</button>
+            </div>
+            <div class="cart-body" id="cart-body"></div>
+            <div class="cart-footer" id="cart-footer"></div>
+        </div>
+    </div>
+
+    <!-- ── CHECKOUT MODAL ── -->
+    <div class="modal-overlay" id="checkout-modal">
+        <div class="modal checkout-modal">
+            <div class="cart-header">
+                <h2 class="cart-title">Place Order</h2>
+                <button class="btn-close" onclick="closeCheckout()">✕</button>
+            </div>
+            <div class="checkout-body">
+                <div class="form-group">
+                    <label class="form-label">Your Name</label>
+                    <input type="text" class="form-input" id="customer-name" placeholder="Enter your name" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Order Type</label>
+                    <div class="order-type-btns">
+                        <button class="order-type-btn active" id="ot-dine" onclick="setOrderType('Dine In', this)">🍽 Dine In</button>
+                        <button class="order-type-btn" id="ot-take" onclick="setOrderType('Takeout', this)">🥡 Takeout</button>
+                    </div>
+                </div>
+                <div class="form-group" id="table-group">
+                    <label class="form-label">Table Number</label>
+                    <input type="text" class="form-input" id="table-num" placeholder="e.g. 5" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <select class="form-input" id="payment-method">
+                        <option value="Cash">Cash</option>
+                        <option value="GCash">GCash</option>
+                        <option value="PayMaya">PayMaya</option>
+                        <option value="Card">Credit / Debit Card</option>
+                    </select>
+                </div>
+                <div class="checkout-summary" id="checkout-summary"></div>
+                <button class="btn-add-to-cart" id="btn-place-order" onclick="placeOrder()">
+                    ✓ Place Order
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── ORDER SUCCESS MODAL ── -->
+    <div class="modal-overlay" id="success-modal">
+        <div class="modal" style="max-width:400px">
+            <div class="success-body">
+                <div class="success-icon">☕✨</div>
+                <h2 class="success-title">Order Placed!</h2>
+                <p class="success-sub">We're preparing your order with care. You'll be notified when it's ready.</p>
+                <div class="order-number" id="success-order-number"></div>
+                <div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.5rem" id="success-details"></div>
+                <button class="btn-back-menu" onclick="closeSuccess()">Back to Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── ORDERS MODAL ── -->
+    <div class="modal-overlay" id="orders-modal">
+        <div class="modal orders-modal">
+            <div class="cart-header">
+                <h2 class="cart-title">My Orders</h2>
+                <button class="btn-close" onclick="closeOrders()">✕</button>
+            </div>
+            <div class="orders-body" id="orders-body"></div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+            // ── DATA FROM SERVER ──
+            const CATEGORIES = @Html.Raw(categoriesJson);
+            const MENU_ITEMS = @Html.Raw(menuItemsJson);
+
+            // ── STATE ──
+            let cart = JSON.parse(localStorage.getItem('bh_cart') || '[]');
+            let orders = JSON.parse(localStorage.getItem('bh_orders') || '[]');
+            let currentItem = null;
+            let currentQty = 1;
+            let currentSelections = {}; // customizationId -> [optionId, ...]
+            let currentAddons = new Set();
+            let currentOrderType = 'Dine In';
+
+            // ── HELPERS ──
+            function fmt(n) { return '₱' + parseFloat(n).toFixed(2); }
+            function genId() { return Math.random().toString(36).substr(2,9).toUpperCase(); }
+            function saveCart() { localStorage.setItem('bh_cart', JSON.stringify(cart)); }
+            function saveOrders() { localStorage.setItem('bh_orders', JSON.stringify(orders)); }
+            function toast(msg) {
+                const el = document.createElement('div');
+                el.className = 'toast'; el.textContent = msg;
+                document.getElementById('toast-container').appendChild(el);
+                setTimeout(() => el.remove(), 2900);
+            }
+            function updateCartBadge() {
+                const total = cart.reduce((s,i) => s + i.qty, 0);
+                document.getElementById('cart-badge').textContent = total;
+                document.getElementById('cart-badge').style.display = total ? 'flex' : 'none';
+            }
+            function updateOrdersDot() {
+                const active = orders.filter(o => ['Pending','Preparing'].includes(o.status));
+                const dot = document.getElementById('orders-dot');
+                dot.classList.toggle('has-orders', active.length > 0);
+            }
+
+            // ── RENDER CATEGORIES SIDEBAR ──
+                       function renderSidebar() {
+                const sorted = [...CATEGORIES].sort((a,b) => a.displayOrder - b.displayOrder);
+
+                document.getElementById('cat-buttons').innerHTML =
+                    sorted.map(c => `
+                        <button class="cat-btn"
+                                onclick="scrollToCat('${c.id}', this)"
+                                data-cat="${c.id}">
+                            <span class="cat-dot"
+                                  style="background:${c.color || '#E8611A'}">
+                            </span>
+                            ${c.name}
+                        </button>
+                    `).join('');
+            }
+
+            // ── RENDER MENU ──
+            function renderMenu(filter='') {
+                const content = document.getElementById('menu-content');
+                const sorted = [...CATEGORIES].sort((a,b) => a.displayOrder - b.displayOrder);
+                let html = '';
+                sorted.forEach(cat => {
+                    const items = MENU_ITEMS.filter(m => {
+                        const matchCat = m.categoryId === cat.id;
+                        const matchFilter = !filter || m.name.toLowerCase().includes(filter) || (m.description||'').toLowerCase().includes(filter);
+                        return matchCat && matchFilter;
+                    }).sort((a,b) => a.displayOrder - b.displayOrder);
+                    if (!items.length) return;
+                    html += `<section class="category-section" id="cat-${cat.id}" data-cat="${cat.id}">
+                        <div class="category-header">
+                            <h2>${cat.name}</h2>
+                            <span class="cat-count">${items.length} items</span>
+                        </div>
+                        <div class="items-grid">
+                            ${items.map(item => renderItemCard(item)).join('')}
+                        </div>
+                    </section>`;
+                });
+                if (!html) html = `<div style="text-align:center;padding:4rem;color:var(--text-muted)"><div style="font-size:2rem;margin-bottom:1rem">🔍</div>No items match your search</div>`;
+                content.innerHTML = html;
+            }
+
+            function renderItemCard(item) {
+                const imgHtml = item.imageBase64
+                    ? `<img src="data:${item.imageMimeType};base64,${item.imageBase64}" alt="${item.name}" loading="lazy" />`
+                    : `<span class="img-placeholder">☕</span>`;
+                const actionBtn = item.isAvailable
+                    ? `<button class="btn-add" onclick="event.stopPropagation();openItemModal('${item.id}')">+</button>`
+                    : `<span class="unavail-badge">Unavailable</span>`;
+                return `
+                    <div class="item-card${!item.isAvailable ? ' unavailable' : ''}" onclick="openItemModal('${item.id}')">
+                        <div class="item-img">${imgHtml}</div>
+                        <div class="item-body">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-desc">${item.description || ''}</div>
+                            <div class="item-footer">
+                                <div>
+                                    <div class="item-price">${fmt(item.price)}</div>
+                                    ${item.preparationTime ? `<div class="item-prep">⏱ ~${item.preparationTime} min</div>` : ''}
+                                </div>
+                                ${actionBtn}
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            // ── ITEM MODAL ──
+            function openItemModal(itemId) {
+                currentItem = MENU_ITEMS.find(m => m.id === itemId);
+                if (!currentItem) return;
+                currentQty = 1;
+                currentSelections = {};
+                currentAddons = new Set();
+
+                // Image
+                const imgDiv = document.getElementById('modal-img');
+                const placeholder = document.getElementById('modal-img-placeholder');
+                if (currentItem.imageBase64) {
+                    imgDiv.innerHTML = `<img src="data:${currentItem.imageMimeType};base64,${currentItem.imageBase64}" alt="${currentItem.name}" />`;
+                } else {
+                    imgDiv.innerHTML = `<span class="img-placeholder">☕</span>`;
+                }
+
+                document.getElementById('modal-name').textContent = currentItem.name;
+                document.getElementById('modal-desc').textContent = currentItem.description || '';
+                document.getElementById('qty-val').textContent = 1;
+                document.getElementById('item-notes').value = '';
+
+                // Customizations
+                const custSection = document.getElementById('customizations-section');
+                const sorted = [...(currentItem.customizations||[])].sort((a,b) => a.displayOrder - b.displayOrder);
+                if (sorted.length) {
+                    // Set defaults
+                    sorted.forEach(c => {
+                        const defaults = c.options.filter(o => o.isDefault).map(o => o.id);
+                        if (c.type === 'Radio') {
+                            currentSelections[c.id] = defaults.length ? [defaults[0]] : [];
+                        } else {
+                            currentSelections[c.id] = defaults;
+                        }
+                    });
+                    custSection.innerHTML = sorted.map(c => `
+                        <div class="customization-group">
+                            <div class="section-label">
+                                ${c.name}
+                                <span class="${c.isRequired ? 'required-badge' : 'optional-badge'}">${c.isRequired ? 'Required' : 'Optional'}</span>
+                            </div>
+                            <div class="option-list">
+                                ${c.options.map(o => {
+                                    const sel = (currentSelections[c.id]||[]).includes(o.id);
+                                    const inputType = c.type === 'Radio' ? 'radio' : 'checkbox';
+                                    const priceStr = o.priceModifier !== 0 ? `<span class="option-price positive">+${fmt(o.priceModifier)}</span>` : '';
+                                    return `<label class="option-item${sel ? ' selected' : ''}" id="opt-${o.id}">
+                                        <input type="${inputType}" name="cust-${c.id}" value="${o.id}" ${sel ? 'checked' : ''}
+                                            onchange="selectOption('${c.id}', '${o.id}', '${c.type}', this)" />
+                                        <span class="option-label">${o.label}</span>
+                                        ${priceStr}
+                                    </label>`;
+                                }).join('')}
+                            </div>
+                        </div>`).join('');
+                } else {
+                    custSection.innerHTML = '';
+                }
+
+                // Addons
+                const addonSection = document.getElementById('addons-section');
+                const activeAddons = (currentItem.addons||[]).filter(a => a.isActive);
+                if (activeAddons.length) {
+                    addonSection.innerHTML = `
+                        <div class="section-label">Add-ons <span class="optional-badge">Optional</span></div>
+                        <div class="addon-grid">
+                            ${activeAddons.map(a => `
+                                <label class="addon-item" id="addon-${a.id}">
+                                    <input type="checkbox" value="${a.id}" onchange="toggleAddon('${a.id}', this)" />
+                                    <span class="addon-name">${a.name}</span>
+                                    <span class="addon-price-tag">+${fmt(a.price)}</span>
+                                </label>`).join('')}
+                        </div>`;
+                } else {
+                    addonSection.innerHTML = '';
+                }
+
+                updateBtnPrice();
+                document.getElementById('item-modal').classList.add('open');
+            }
+
+            function selectOption(custId, optId, type, input) {
+                if (type === 'Radio') {
+                    currentSelections[custId] = [optId];
+                    // Update UI
+                    document.querySelectorAll(`input[name="cust-${custId}"]`).forEach(el => {
+                        document.getElementById('opt-' + el.value)?.classList.toggle('selected', el.checked);
+                    });
+                } else {
+                    if (!currentSelections[custId]) currentSelections[custId] = [];
+                    if (input.checked) { currentSelections[custId].push(optId); }
+                    else { currentSelections[custId] = currentSelections[custId].filter(id => id !== optId); }
+                    document.getElementById('opt-' + optId)?.classList.toggle('selected', input.checked);
+                }
+                updateBtnPrice();
+            }
+
+            function toggleAddon(addonId, input) {
+                if (input.checked) currentAddons.add(addonId);
+                else currentAddons.delete(addonId);
+                document.getElementById('addon-' + addonId)?.classList.toggle('selected', input.checked);
+                updateBtnPrice();
+            }
+
+            function getCustomizationPrice() {
+                if (!currentItem) return 0;
+                let extra = 0;
+                Object.entries(currentSelections).forEach(([custId, selectedIds]) => {
+                    const cust = currentItem.customizations.find(c => c.id === custId);
+                    if (!cust) return;
+                    selectedIds.forEach(oid => {
+                        const opt = cust.options.find(o => o.id === oid);
+                        if (opt) extra += parseFloat(opt.priceModifier);
+                    });
+                });
+                [...currentAddons].forEach(addonId => {
+                    const addon = currentItem.addons.find(a => a.id === addonId);
+                    if (addon) extra += parseFloat(addon.price);
+                });
+                return extra;
+            }
+
+            function updateBtnPrice() {
+                const base = parseFloat(currentItem?.price || 0);
+                const extra = getCustomizationPrice();
+                const total = (base + extra) * currentQty;
+                document.getElementById('btn-price').textContent = fmt(total);
+                document.getElementById('modal-price').textContent = fmt(base + extra);
+            }
+
+            function changeQty(delta) {
+                currentQty = Math.max(1, currentQty + delta);
+                document.getElementById('qty-val').textContent = currentQty;
+                updateBtnPrice();
+            }
+
+            function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); }
+
+            function addToCart() {
+                if (!currentItem) return;
+                // Validate required
+                const missing = (currentItem.customizations||[]).filter(c => {
+                    return c.isRequired && !(currentSelections[c.id]||[]).length;
+                });
+                if (missing.length) { toast('Please select: ' + missing[0].name); return; }
+
+                const base = parseFloat(currentItem.price);
+                const extra = getCustomizationPrice();
+                const unitPrice = base + extra;
+
+                // Build mods description
+                const mods = [];
+                Object.entries(currentSelections).forEach(([custId, selectedIds]) => {
+                    const cust = currentItem.customizations.find(c => c.id === custId);
+                    if (!cust || !selectedIds.length) return;
+                    const labels = selectedIds.map(oid => {
+                        const opt = cust.options.find(o => o.id === oid);
+                        return opt ? opt.label : '';
+                    });
+                    mods.push(cust.name + ': ' + labels.join(', '));
+                });
+                [...currentAddons].forEach(addonId => {
+                    const addon = currentItem.addons.find(a => a.id === addonId);
+                    if (addon) mods.push('+ ' + addon.name);
+                });
+
+                const notes = document.getElementById('item-notes').value.trim();
+                if (notes) mods.push('Note: ' + notes);
+
+                cart.push({
+                    cartId: genId(),
+                    itemId: currentItem.id,
+                    name: currentItem.name,
+                    qty: currentQty,
+                    unitPrice,
+                    mods,
+                    selections: JSON.parse(JSON.stringify(currentSelections)),
+                    addons: [...currentAddons],
+                    notes
+                });
+                saveCart();
+                updateCartBadge();
+                closeItemModal();
+                toast(`${currentItem.name} added to cart!`);
+            }
+
+            // ── CART MODAL ──
+            function openCart() {
+                renderCart();
+                document.getElementById('cart-modal').classList.add('open');
+            }
+            function closeCart() { document.getElementById('cart-modal').classList.remove('open'); }
+
+            function renderCart() {
+                const body = document.getElementById('cart-body');
+                const footer = document.getElementById('cart-footer');
+                if (!cart.length) {
+                    body.innerHTML = `<div class="cart-empty"><div class="empty-icon">🛒</div><div>Your cart is empty</div><div style="font-size:0.8rem;margin-top:4px">Add some items to get started</div></div>`;
+                    footer.innerHTML = '';
+                    return;
+                }
+                body.innerHTML = cart.map(ci => `
+                    <div class="cart-item">
+                        <div class="cart-item-info">
+                            <div class="cart-item-name">${ci.name}</div>
+                            ${ci.mods.length ? `<div class="cart-item-mods">${ci.mods.join(' · ')}</div>` : ''}
+                            <div class="cart-item-controls">
+                                <button class="cart-qty-btn" onclick="cartChangeQty('${ci.cartId}', -1)">−</button>
+                                <span class="cart-qty-val">${ci.qty}</span>
+                                <button class="cart-qty-btn" onclick="cartChangeQty('${ci.cartId}', 1)">+</button>
+                                <button class="btn-remove" onclick="removeCartItem('${ci.cartId}')" title="Remove">✕</button>
+                            </div>
+                        </div>
+                        <div class="cart-item-price">${fmt(ci.unitPrice * ci.qty)}</div>
+                    </div>`).join('');
+
+                const subtotal = cart.reduce((s,i) => s + i.unitPrice * i.qty, 0);
+                footer.innerHTML = `
+                    <div class="cart-total-row">
+                        <span class="cart-total-label">Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span>
+                        <span class="cart-total-val">${fmt(subtotal)}</span>
+                    </div>
+                    <button class="btn-checkout" onclick="openCheckout()">Proceed to Checkout</button>`;
+            }
+
+            function cartChangeQty(cartId, delta) {
+                const idx = cart.findIndex(c => c.cartId === cartId);
+                if (idx === -1) return;
+                cart[idx].qty = Math.max(1, cart[idx].qty + delta);
+                saveCart(); updateCartBadge(); renderCart();
+            }
+            function removeCartItem(cartId) {
+                cart = cart.filter(c => c.cartId !== cartId);
+                saveCart(); updateCartBadge(); renderCart();
+            }
+
+            // ── CHECKOUT ──
+            function openCheckout() {
+                closeCart();
+                const subtotal = cart.reduce((s,i) => s + i.unitPrice * i.qty, 0);
+                document.getElementById('checkout-summary').innerHTML = `
+                    <div style="font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">Order Summary</div>
+                    ${cart.map(ci => `<div class="checkout-row"><span>${ci.qty}× ${ci.name}</span><span>${fmt(ci.unitPrice * ci.qty)}</span></div>`).join('')}
+                    <div class="checkout-row total"><span>Total</span><span style="color:var(--orange-dark)">${fmt(subtotal)}</span></div>`;
+                document.getElementById('checkout-modal').classList.add('open');
+            }
+            function closeCheckout() { document.getElementById('checkout-modal').classList.remove('open'); }
+            function setOrderType(type, btn) {
+                currentOrderType = type;
+                document.querySelectorAll('.order-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('table-group').style.display = type === 'Dine In' ? 'block' : 'none';
+            }
+
+            function placeOrder() {
+                const name = document.getElementById('customer-name').value.trim();
+                if (!name) { toast('Please enter your name'); return; }
+                if (!cart.length) { toast('Your cart is empty'); return; }
+                const table = document.getElementById('table-num').value.trim();
+                if (currentOrderType === 'Dine In' && !table) { toast('Please enter table number'); return; }
+
+                const subtotal = cart.reduce((s,i) => s + i.unitPrice * i.qty, 0);
+                const prepTime = Math.max(...cart.map(ci => {
+                    const mi = MENU_ITEMS.find(m => m.id === ci.itemId);
+                    return (mi?.preparationTime || 0) * ci.qty;
+                }));
+
+                const order = {
+                    orderId: 'ORD-' + genId(),
+                    customerName: name,
+                    orderType: currentOrderType,
+                    tableNumber: table,
+                    paymentMethod: document.getElementById('payment-method').value,
+                    items: JSON.parse(JSON.stringify(cart)),
+                    subtotal,
+                    status: 'Pending',
+                    createdAt: new Date().toISOString(),
+                    estimatedMinutes: Math.max(prepTime, 5)
+                };
+                orders.unshift(order);
+                saveOrders();
+                cart = [];
+                saveCart();
+                updateCartBadge();
+                updateOrdersDot();
+                closeCheckout();
+
+                document.getElementById('success-order-number').textContent = order.orderId;
+                document.getElementById('success-details').innerHTML =
+                    `${name} · ${currentOrderType}${table ? ' · Table ' + table : ''}<br>Est. wait: ${order.estimatedMinutes} min`;
+                document.getElementById('success-modal').classList.add('open');
+
+                // Simulate status progression
+                simulateOrderProgress(order.orderId);
+            }
+
+            function simulateOrderProgress(orderId) {
+                setTimeout(() => updateOrderStatus(orderId, 'Preparing'), 5000);
+                setTimeout(() => updateOrderStatus(orderId, 'Ready'), 15000);
+            }
+            function updateOrderStatus(orderId, status) {
+                const o = orders.find(o => o.orderId === orderId);
+                if (o && o.status !== 'Completed' && o.status !== 'Cancelled') {
+                    o.status = status;
+                    saveOrders();
+                    updateOrdersDot();
+                    toast(`Order ${orderId} is now ${status}! ${status === 'Ready' ? '🎉' : '☕'}`);
+                }
+            }
+
+            function closeSuccess() { document.getElementById('success-modal').classList.remove('open'); }
+
+            // ── ORDERS ──
+            function openOrders() {
+                renderOrders();
+                document.getElementById('orders-modal').classList.add('open');
+            }
+            function closeOrders() { document.getElementById('orders-modal').classList.remove('open'); }
+
+            function renderOrders() {
+                const body = document.getElementById('orders-body');
+                if (!orders.length) {
+                    body.innerHTML = `<div class="no-orders"><div style="font-size:2.5rem;margin-bottom:0.75rem">📋</div><div>No orders yet</div><div style="font-size:0.8rem;margin-top:4px">Your orders will appear here</div></div>`;
+                    return;
+                }
+                body.innerHTML = orders.map(o => {
+                    const dt = new Date(o.createdAt);
+                    const timeStr = dt.toLocaleDateString('en-PH', { month:'short', day:'numeric' }) + ' ' + dt.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
+                    const canCancel = ['Pending'].includes(o.status);
+                    return `<div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <div class="order-id">${o.orderId}</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px">${o.customerName} · ${o.orderType}${o.tableNumber ? ' · Table ' + o.tableNumber : ''}</div>
+                            </div>
+                            <span class="order-status-badge status-${o.status.toLowerCase().replace(' ','-')}">${o.status}</span>
+                        </div>
+                        <div class="order-items-list">
+                            ${o.items.map(ci => `
+                                <div class="order-item-line">
+                                    <span>${ci.qty}× ${ci.name}</span>
+                                    <span>${fmt(ci.unitPrice * ci.qty)}</span>
+                                </div>
+                                ${ci.mods.length ? `<div class="order-item-mods-line">${ci.mods.join(' · ')}</div>` : ''}
+                            `).join('')}
+                        </div>
+                        <div class="order-footer">
+                            <div>
+                                <div class="order-time">${timeStr}</div>
+                                ${o.status === 'Pending' || o.status === 'Preparing' ? `<div style="font-size:0.72rem;color:var(--orange-dark);margin-top:2px">⏱ Est. ~${o.estimatedMinutes} min</div>` : ''}
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px">
+                                ${canCancel ? `<button class="btn-cancel-order" onclick="cancelOrder('${o.orderId}')">Cancel</button>` : ''}
+                                <span class="order-total">${fmt(o.subtotal)}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            function cancelOrder(orderId) {
+                const o = orders.find(o => o.orderId === orderId);
+                if (o && o.status === 'Pending') {
+                    o.status = 'Cancelled';
+                    saveOrders();
+                    updateOrdersDot();
+                    renderOrders();
+                    toast('Order cancelled.');
+                }
+            }
+
+            // ── NAVIGATION ──
+            function scrollToCat(catId, btn) {
+                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('cat-' + catId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            function scrollToAll(btn) {
+                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            function filterItems(val) { renderMenu(val.toLowerCase()); }
+
+            // ── CLOSE ON OVERLAY CLICK ──
+            ['item-modal','cart-modal','checkout-modal','success-modal','orders-modal'].forEach(id => {
+                document.getElementById(id).addEventListener('click', function(e) {
+                    if (e.target === this) this.classList.remove('open');
+                });
+            });
+
+            // ── INIT ──
+            renderSidebar();
+            renderMenu();
+            updateCartBadge();
+            updateOrdersDot();
+            // Hide cart badge if 0
+            if (!cart.reduce((s,i)=>s+i.qty,0)) document.getElementById('cart-badge').style.display = 'none';
+    </script>
+</body>
+</html>

@@ -19,5 +19,7 @@ namespace WebPOSCafe.Models
 
         public ICollection<CustomizationOption> Options { get; set; } = new List<CustomizationOption>();
         public ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
+        public ICollection<MenuItemCustomization> MenuItemCustomizations { get; set; } = new List<MenuItemCustomization>();
+
     }
 }
