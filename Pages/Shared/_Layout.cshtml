@@ -67,6 +67,11 @@
                             <i class="ti ti-chart-bar" aria-hidden="true"></i>
                             Reports
                         </a>
+                        <a asp-page="/Admin/GenerateQRCodes"
+                           class="nav-item @(path.Contains("GenerateQRCodes") ? "active" : "")">
+                            <i class="ti ti-qrcode" aria-hidden="true"></i>
+                            Generate QR Codes
+                        </a>
                         <a asp-page="/Admin/Settings" class="nav-item @(path.Contains("Settings") ? "active" : "")">
                             <i class="ti ti-settings" aria-hidden="true"></i>
                             Settings

@@ -18,6 +18,10 @@ namespace WebPOSCafe.Data
         public DbSet<MenuItemCustomization> MenuItemCustomizations => Set<MenuItemCustomization>();
         public DbSet<MenuItemAddon> MenuItemAddons => Set<MenuItemAddon>();
 
+
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // MenuItemCustomization composite key

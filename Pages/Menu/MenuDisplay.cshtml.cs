@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WebPOSCafe.Data;
@@ -9,11 +10,14 @@ namespace WebPOSCafe.Pages.Menu
     {
         private readonly AppDbContext _db;
 
+
         public MenuDisplayModel(AppDbContext db)
         {
             _db = db;
         }
 
+        [BindProperty(SupportsGet = true)]
+        public string Table { get; set; } = "";   // ? reads ?table=5 from URL
         public List<Category> Categories { get; set; } = new();
         public List<MenuItem> MenuItems { get; set; } = new();
 

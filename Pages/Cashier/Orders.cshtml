@@ -1,4 +1,485 @@
 ﻿@page
 @model WebPOSCafe.Pages.Cashier.OrdersModel
 @{
+  ViewData["Title"] = "Order Management";
+  ViewData["Subtitle"] = "Manage all active orders in real-time";
 }
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/orders.css" />
+
+<div class="orders-page">
+    <!-- Header -->
+    <div class="orders-header">
+      
+        <div class="header-stats">
+            <div class="stat-badge">
+                <span class="stat-label">Total Orders</span>
+                <span class="stat-value">@Model.AllOrders.Count</span>
+            </div>
+            <div class="stat-badge">
+                <span class="stat-label">In Progress</span>
+                <span class="stat-value">@Model.AllOrders.Count(o => o.Status != "paid")</span>
+            </div>
+            <div class="stat-badge">
+                <span class="stat-label">Ready</span>
+                <span class="stat-value">@Model.AllOrders.Count(o => o.Status == "ready")</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <form method="get" id="filterForm">
+        <div class="search-filters-section">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text"
+                       name="searchQuery"
+                       value="@Model.SearchQuery"
+                       placeholder="Search by Order #, Table, or Item..."
+                       oninput="this.form.submit()" />
+            </div>
+            <input type="hidden" name="selectedTab" value="@Model.SelectedTab" />
+
+            <div class="filter-buttons">
+                @foreach (var filter in new[] { "all", "pending", "preparing", "ready", "paid" })
+                {
+                    var label = filter == "all" ? "All Orders" : filter == "paid" ? "Completed" : char.ToUpper(filter[0]) + filter.Substring(1);
+                    <button type="submit" name="selectedFilter" value="@filter"
+                            class="filter-btn @(Model.SelectedFilter == filter ? "active" : "")">
+                        @label
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs-section">
+            @foreach (var tab in new[] { ("dine-in", "Dine-In"), ("take-out", "Take-Out"), ("completed", "Completed") })
+            {
+                <button type="submit" name="selectedTab" value="@tab.Item1"
+                        class="tab-btn @(Model.SelectedTab == tab.Item1 ? "active" : "")">
+                    @if (tab.Item1 == "dine-in")
+                    {
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l12 0"></path>
+                            <rect x="2" y="3" width="20" height="14" rx="2"></rect>
+                            <path d="M5 21h14"></path>
+                        </svg>
+                    }
+                    else if (tab.Item1 == "take-out")
+                    {
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <path d="M16 10a4 4 0 0 1-8 0"></path>
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    }
+                    <span>@tab.Item2</span>
+                    <span class="tab-badge">
+                        @(tab.Item1 == "completed"
+                            ? Model.OrdersFiltered.Count(o => o.Status == "paid")
+                            : Model.OrdersFiltered.Count(o => o.Type == tab.Item1))
+                    </span>
+                </button>
+            }
+        </div>
+    </form>
+
+    <!-- Orders Grid -->
+    <div class="orders-list-section">
+        @if (!Model.OrdersFiltered.Any())
+        {
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"></path>
+                </svg>
+                <p>No orders found</p>
+                <span class="empty-hint">Try adjusting your filters</span>
+            </div>
+        }
+        else
+        {
+            <div class="orders-grid">
+                @foreach (var order in Model.OrdersFiltered)
+                {
+                    <div class="order-card order-@order.Status" onclick="openPanel(@order.Id)">
+                        <div class="order-card-header">
+                            <div>
+                                <span class="order-number">#@order.OrderNumber</span>
+                                <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">
+                                    @order.CustomerName
+                                </div>
+                            </div>
+                            <div class="order-badges">
+                                <span class="order-type-badge @order.Type">
+                                    @(order.Type == "dine-in" ? "🍽️ Dine-In" : "🛍️ Take-Out")
+                                </span>
+                                <span class="order-status-badge @order.Status"
+                                      id="status-badge-@order.Id">@order.Status</span>
+                            </div>
+                        </div>
+
+                        <div class="order-card-content">
+                            <div class="order-details-grid">
+                                @if (!string.IsNullOrEmpty(order.Table))
+                                {
+                                    <div class="detail-item">
+                                        <span class="detail-label">Table</span>
+                                        <span class="detail-value">@order.Table</span>
+                                    </div>
+                                }
+                                <div class="detail-item">
+                                    <span class="detail-label">Items</span>
+                                    <span class="detail-value">@order.ItemCount</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Time</span>
+                                    <span class="detail-value time-badge">@order.ElapsedTime</span>
+                                </div>
+                            </div>
+
+                            <div class="items-preview">
+                                @foreach (var item in order.Items.Take(2))
+                                {
+                                    <div class="item-preview">
+                                        <span class="item-qty">@item.Quantity×</span>
+                                        <span class="item-name">@item.Name</span>
+                                    </div>
+                                }
+                                @if (order.Items.Count > 2)
+                                {
+                                    <div class="items-more">+@(order.Items.Count - 2) more items</div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="order-card-footer">
+                            <div class="order-price">
+                                <span class="price-label">Total</span>
+                                <span class="price-value">₱@order.Total.ToString("0.00")</span>
+                            </div>
+                            <a class="btn-view" href="#" onclick="event.stopPropagation(); openPanel(@order.Id); return false;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                View
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Order Detail Panel (rendered for each order, shown/hidden via JS) -->
+@foreach (var order in Model.AllOrders)
+{
+    <div id="panel-overlay-@order.Id" class="panel-overlay" style="display:none;" onclick="closePanel(@order.Id)"></div>
+
+    <div id="panel-@order.Id" class="order-details-panel" style="display:none;">
+        <div class="panel-header">
+            <div class="panel-header-content">
+                <h2>Order #@order.OrderNumber</h2>
+                <p class="panel-subtitle" id="panel-status-@order.Id">
+                    @order.Status.ToUpper() • @order.ElapsedTime elapsed
+                </p>
+            </div>
+            <a href="#" class="btn-close" onclick="closePanel(@order.Id); return false;">×</a>
+        </div>
+
+        <div class="panel-content">
+            <!-- Order Information -->
+            <div class="panel-section">
+                <h3>Order Information</h3>
+                <div class="info-grid">
+                    <!-- inside the info-grid div in the panel -->
+                    <div class="info-item">
+                        <label>Customer</label>
+                        <p>@order.CustomerName</p>
+                    </div>
+                    <div class="info-item">
+                        <label>Order Type</label>
+                        <div class="info-badge @order.Type">@order.Type</div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(order.Table))
+                    {
+                        <div class="info-item">
+                            <label>Table</label>
+                            <p>@order.Table</p>
+                        </div>
+                    }
+                    <div class="info-item">
+                        <label>Status</label>
+                        <div class="info-badge @order.Status">@order.Status</div>
+                    </div>
+                    <div class="info-item">
+                        <label>Time</label>
+                        <p>@order.ElapsedTime</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Ordered -->
+            <div class="panel-section">
+                <h3>Items Ordered</h3>
+                <div class="items-list">
+                    @foreach (var item in order.Items)
+                    {
+                        <div class="item-row">
+                            <div class="item-details">
+                                <p class="item-main">@item.Quantity × @item.Name</p>
+                                @if (!string.IsNullOrEmpty(item.Customization))
+                                {
+                                    <p class="item-meta">→ @item.Customization</p>
+                                }
+                                @if (!string.IsNullOrEmpty(item.SpecialInstructions))
+                                {
+                                    <p class="item-meta">📝 @item.SpecialInstructions</p>
+                                }
+                            </div>
+                            <p class="item-price">₱@item.Price.ToString("0.00")</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="panel-section">
+                <h3>Summary</h3>
+                <div class="summary-table">
+                    <div class="summary-row">
+                        <span>Subtotal</span>
+                        <span>₱@((order.Total * 0.85m).ToString("0.00"))</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax (10%)</span>
+                        <span>₱@((order.Total * 0.10m).ToString("0.00"))</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total Amount</span>
+                        <span>₱@order.Total.ToString("0.00")</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Special Instructions -->
+            @if (!string.IsNullOrEmpty(order.SpecialInstructions))
+            {
+                <div class="panel-section">
+                    <h3>Special Instructions</h3>
+                    <div class="special-instructions">@order.SpecialInstructions</div>
+                </div>
+            }
+
+            <!-- Payment Status -->
+            <div class="panel-section">
+                <h3>Payment Status</h3>
+                <div class="payment-status-box @(order.Status == "paid" ? "paid" : "pending")">
+                    <span class="status-icon">@(order.Status == "paid" ? "✓" : "⏳")</span>
+                    <span>@(order.Status == "paid" ? "Paid" : "Pending")</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="panel-actions" id="panel-actions-@order.Id">
+            @if (order.Status == "pending")
+            {
+                <form method="post" asp-page-handler="UpdateStatus">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <input type="hidden" name="newStatus" value="preparing" />
+                    <input type="hidden" name="selectedTab" value="@Model.SelectedTab" />
+                    <input type="hidden" name="selectedFilter" value="@Model.SelectedFilter" />
+                    <button type="submit" class="action-btn btn-accept">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        Accept Order
+                    </button>
+                </form>
+            }
+            @if (order.Status == "preparing")
+            {
+                <form method="post" asp-page-handler="UpdateStatus">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <input type="hidden" name="newStatus" value="ready" />
+                    <input type="hidden" name="selectedTab" value="@Model.SelectedTab" />
+                    <input type="hidden" name="selectedFilter" value="@Model.SelectedFilter" />
+                    <button type="submit" class="action-btn btn-ready">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        Mark Ready
+                    </button>
+                </form>
+            }
+            @if (order.Status == "ready")
+            {
+                <form method="post" asp-page-handler="UpdateStatus">
+                    <input type="hidden" name="orderId" value="@order.Id" />
+                    <input type="hidden" name="newStatus" value="paid" />
+                    <input type="hidden" name="selectedTab" value="@Model.SelectedTab" />
+                    <input type="hidden" name="selectedFilter" value="@Model.SelectedFilter" />
+                    <button type="submit" class="action-btn btn-paid">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                        Mark Paid
+                    </button>
+                </form>
+            }
+            <form method="post" asp-page-handler="PrintReceipt">
+                <input type="hidden" name="orderId" value="@order.Id" />
+                <button type="submit" class="action-btn btn-print">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path></svg>
+                    Print Receipt
+                </button>
+            </form>
+            <a href="#" class="action-btn btn-cancel" onclick="closePanel(@order.Id); return false;">Cancel</a>
+        </div>
+    </div>
+}
+
+<script>
+    function openPanel(orderId) {
+        document.getElementById('panel-' + orderId).style.display = 'flex';
+        document.getElementById('panel-overlay-' + orderId).style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closePanel(orderId) {
+        document.getElementById('panel-' + orderId).style.display = 'none';
+        document.getElementById('panel-overlay-' + orderId).style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    // Debounced search
+    let searchTimeout;
+    const searchInput = document.querySelector('.search-box input');
+    if (searchInput) {
+        searchInput.oninput = function () {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => this.form.submit(), 400);
+        };
+    }
+
+        // ── AUTO SYNC: poll DB every 5s and update status badges live ──
+    const STATUS_COLORS = {
+        'pending':   'pending',
+        'preparing': 'preparing',
+        'ready':     'ready',
+        'paid':      'paid',
+        'cancelled': 'cancelled'
+    };
+
+    async function syncOrderStatuses() {
+        try {
+            const res = await fetch('/api/kds/orders-all');
+            if (!res.ok) return;
+            const orders = await res.json();
+
+            orders.forEach(order => {
+                // Update status badge on the card
+                const badge = document.querySelector(`#status-badge-${order.id}`);
+                if (badge) {
+                    badge.textContent = order.status;
+                    badge.className = `order-status-badge ${order.status}`;
+                }
+
+                // Update the card's status class
+                const card = document.querySelector(`#order-card-${order.id}`);
+                if (card) {
+                    card.className = card.className
+                        .replace(/order-(pending|preparing|ready|paid|cancelled)/g, '')
+                        .trim();
+                    card.classList.add(`order-${order.status}`);
+                }
+
+                // Update panel subtitle if open
+                const panelSub = document.querySelector(`#panel-status-${order.id}`);
+                if (panelSub) {
+                    panelSub.textContent = `${order.status.toUpperCase()} • ${order.elapsedTime} elapsed`;
+                }
+
+                // Update panel action buttons
+                const panelActions = document.querySelector(`#panel-actions-${order.id}`);
+                if (panelActions) {
+                    panelActions.innerHTML = buildActionButtons(order);
+                }
+            });
+
+        } catch(e) {
+            console.error('Sync error:', e);
+        }
+    }
+
+    function buildActionButtons(order) {
+        let html = '';
+
+        if (order.status === 'pending') {
+            html += `
+                <form method="post" action="?handler=UpdateStatus">
+                    <input type="hidden" name="__RequestVerificationToken"
+                           value="${document.querySelector('input[name=__RequestVerificationToken]')?.value || ''}" />
+                    <input type="hidden" name="orderId" value="${order.id}" />
+                    <input type="hidden" name="newStatus" value="preparing" />
+                    <input type="hidden" name="selectedTab" value="${document.querySelector('[name=selectedTab]')?.value || 'dine-in'}" />
+                    <input type="hidden" name="selectedFilter" value="${document.querySelector('[name=selectedFilter]')?.value || 'all'}" />
+                    <button type="submit" class="action-btn btn-accept">
+                        ✓ Accept Order
+                    </button>
+                </form>`;
+        }
+
+        if (order.status === 'preparing') {
+            html += `
+                <form method="post" action="?handler=UpdateStatus">
+                    <input type="hidden" name="__RequestVerificationToken"
+                           value="${document.querySelector('input[name=__RequestVerificationToken]')?.value || ''}" />
+                    <input type="hidden" name="orderId" value="${order.id}" />
+                    <input type="hidden" name="newStatus" value="ready" />
+                    <input type="hidden" name="selectedTab" value="${document.querySelector('[name=selectedTab]')?.value || 'dine-in'}" />
+                    <input type="hidden" name="selectedFilter" value="${document.querySelector('[name=selectedFilter]')?.value || 'all'}" />
+                    <button type="submit" class="action-btn btn-ready">
+                        📋 Mark Ready
+                    </button>
+                </form>`;
+        }
+
+        if (order.status === 'ready') {
+            html += `
+                <form method="post" action="?handler=UpdateStatus">
+                    <input type="hidden" name="__RequestVerificationToken"
+                           value="${document.querySelector('input[name=__RequestVerificationToken]')?.value || ''}" />
+                    <input type="hidden" name="orderId" value="${order.id}" />
+                    <input type="hidden" name="newStatus" value="paid" />
+                    <input type="hidden" name="selectedTab" value="${document.querySelector('[name=selectedTab]')?.value || 'dine-in'}" />
+                    <input type="hidden" name="selectedFilter" value="${document.querySelector('[name=selectedFilter]')?.value || 'all'}" />
+                    <button type="submit" class="action-btn btn-paid">
+                        💳 Mark Paid
+                    </button>
+                </form>`;
+        }
+
+        html += `
+            <form method="post" action="?handler=PrintReceipt">
+                <input type="hidden" name="__RequestVerificationToken"
+                       value="${document.querySelector('input[name=__RequestVerificationToken]')?.value || ''}" />
+                <input type="hidden" name="orderId" value="${order.id}" />
+                <button type="submit" class="action-btn btn-print">🖨 Print Receipt</button>
+            </form>
+            <a href="#" class="action-btn btn-cancel" onclick="closePanel(${order.id}); return false;">Cancel</a>`;
+
+        return html;
+    }
+
+    // Start polling
+    setInterval(syncOrderStatuses, 5000);
+    syncOrderStatuses();
+</script>

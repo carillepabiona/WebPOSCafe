@@ -64,6 +64,9 @@
             <span class="logo-dot"></span> Verso Cafe
         </a>
         <div class="nav-actions">
+            <div class="btn-oders">
+                Table <span id="table-display">@Model.Table</span>
+            </div>
             <button class="btn-orders" onclick="openOrders()">
                 <span class="orders-dot" id="orders-dot"></span>
                 My Orders
@@ -575,47 +578,92 @@
                 btn.classList.add('active');
                 document.getElementById('table-group').style.display = type === 'Dine In' ? 'block' : 'none';
             }
-
-            function placeOrder() {
+                       async function placeOrder() {
                 const name = document.getElementById('customer-name').value.trim();
                 if (!name) { toast('Please enter your name'); return; }
                 if (!cart.length) { toast('Your cart is empty'); return; }
-                const table = document.getElementById('table-num').value.trim();
-                if (currentOrderType === 'Dine In' && !table) { toast('Please enter table number'); return; }
 
-                const subtotal = cart.reduce((s,i) => s + i.unitPrice * i.qty, 0);
+                // ── Table comes from the URL via @Model.Table ──────────────────
+                const TABLE_NUMBER = "@Model.Table";  // ← add this
+                const table = TABLE_NUMBER || document.getElementById('table-num').value.trim();
+                if (currentOrderType === 'Dine In' && !table) {
+                    toast('Please enter table number'); return;
+                }
+
+                const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
                 const prepTime = Math.max(...cart.map(ci => {
                     const mi = MENU_ITEMS.find(m => m.id === ci.itemId);
                     return (mi?.preparationTime || 0) * ci.qty;
                 }));
 
-                const order = {
-                    orderId: 'ORD-' + genId(),
-                    customerName: name,
-                    orderType: currentOrderType,
-                    tableNumber: table,
-                    paymentMethod: document.getElementById('payment-method').value,
-                    items: JSON.parse(JSON.stringify(cart)),
-                    subtotal,
-                    status: 'Pending',
-                    createdAt: new Date().toISOString(),
-                    estimatedMinutes: Math.max(prepTime, 5)
+                const orderPayload = {
+                    customerName:     name,
+                    orderType:        currentOrderType === 'Dine In' ? 'dine-in' : 'take-out',
+                    tableNumber:      table,              // ← sends TABLE_NUMBER from QR scan
+                    paymentMethod:    document.getElementById('payment-method').value,
+                    estimatedMinutes: Math.max(prepTime, 5),
+                    items: cart.map(ci => ({
+                        menuItemId:          ci.itemId,
+                        name:                ci.name,
+                        quantity:            ci.qty,
+                        unitPrice:           ci.unitPrice,
+                        customization:       ci.mods.filter(m => !m.startsWith('Note:')).join(' · '),
+                        specialInstructions: ci.notes || ''
+                    }))
                 };
-                orders.unshift(order);
-                saveOrders();
-                cart = [];
-                saveCart();
-                updateCartBadge();
-                updateOrdersDot();
-                closeCheckout();
 
-                document.getElementById('success-order-number').textContent = order.orderId;
-                document.getElementById('success-details').innerHTML =
-                    `${name} · ${currentOrderType}${table ? ' · Table ' + table : ''}<br>Est. wait: ${order.estimatedMinutes} min`;
-                document.getElementById('success-modal').classList.add('open');
+                const btn = document.getElementById('btn-place-order');
+                btn.disabled = true;
+                btn.textContent = 'Placing Order...';
 
-                // Simulate status progression
-                simulateOrderProgress(order.orderId);
+                try {
+                    const res = await fetch('/api/orders/place', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(orderPayload)
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.text();
+                        console.error('Server error:', err);
+                        throw new Error(err);
+                    }
+
+                    const data = await res.json();
+
+                    const localOrder = {
+                        orderId:      data.orderNumber,
+                        customerName: name,
+                        orderType:    currentOrderType,
+                        tableNumber:  table,
+                        items:        JSON.parse(JSON.stringify(cart)),
+                        subtotal,
+                        status:       'Pending',
+                        createdAt:    new Date().toISOString(),
+                        estimatedMinutes: Math.max(prepTime, 5)
+                    };
+                    orders.unshift(localOrder);
+                    saveOrders();
+
+                    cart = [];
+                    saveCart();
+                    updateCartBadge();
+                    updateOrdersDot();
+                    closeCheckout();
+
+                    document.getElementById('success-order-number').textContent = data.orderNumber;
+                    document.getElementById('success-details').innerHTML =
+                        `${name} · ${currentOrderType}${table ? ' · Table ' + table : ''}<br>
+                         Est. wait: ${Math.max(prepTime, 5)} min`;
+                    document.getElementById('success-modal').classList.add('open');
+
+                } catch (err) {
+                    console.error('Order error:', err);
+                    toast('Failed to place order: ' + err.message);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '✓ Place Order';
+                }
             }
 
             function simulateOrderProgress(orderId) {
