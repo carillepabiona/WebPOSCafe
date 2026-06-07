@@ -49,7 +49,6 @@ namespace WebPOSCafe.Pages.Api
         }
 
         // ── POST /api/kds/status  ────────────────────────────────────────
-        // Updates an order's status from the KDS buttons
         [HttpPost("status")]
         public async Task<IActionResult> UpdateStatus([FromBody] KdsStatusDto dto)
         {
@@ -57,16 +56,16 @@ namespace WebPOSCafe.Pages.Api
             if (order == null)
                 return NotFound(new { error = "Order not found" });
 
-            // Only allow forward progression
-            var allowed = new Dictionary<string, string>
+            var allowed = new Dictionary<string, string[]>
             {
-                { "pending",   "preparing" },
-                { "preparing", "ready"     },
-                { "ready",     "paid"      }
+                { "awaiting_payment", new[] { "pending", "cancelled"  } },
+                { "pending",          new[] { "preparing", "cancelled" } },
+                { "preparing",        new[] { "ready"                 } },
+                { "ready",            new[] { "served"             } }
             };
 
-            if (!allowed.TryGetValue(order.Status, out var next) || next != dto.NewStatus)
-                return BadRequest(new { error = "Invalid status transition" });
+            if (!allowed.TryGetValue(order.Status, out var validNext) || !validNext.Contains(dto.NewStatus))
+                return BadRequest(new { error = $"Cannot transition from {order.Status} to {dto.NewStatus}" });
 
             order.Status = dto.NewStatus;
             await _db.SaveChangesAsync();
@@ -79,7 +78,8 @@ namespace WebPOSCafe.Pages.Api
         public IActionResult GetAllOrders()
         {
             var orders = _db.Orders
-                .Where(o => o.Status != "paid" && o.Status != "cancelled")
+            // Change to:
+            .Where(o => o.Status != "completed" && o.Status != "cancelled") 
                 .OrderBy(o => o.CreatedAt)
                 .Select(o => new
                 {

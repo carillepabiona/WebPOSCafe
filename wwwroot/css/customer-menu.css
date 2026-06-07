@@ -1556,3 +1556,68 @@ body {
     font-weight: 600;
     z-index: 999;
 }
+
+.btn-callstaff {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px;
+    margin-top: 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: var(--border-radius-lg);
+    border: none;
+    background: var(--orange-dark, #E8611A);
+    color: #fff;
+    cursor: pointer;
+    animation: pulse-btn 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-btn {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(232,97,26,0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 0 10px rgba(232,97,26,0);
+    }
+}
+
+.btn-callstaff:disabled {
+    animation: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.callstaff-timer {
+    font-size: 2.5rem;
+    font-weight: 500;
+    letter-spacing: 2px;
+    color: var(--color-text-secondary, #888);
+    margin-top: 1rem;
+}
+
+.live-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: livepulse 1.2s ease-in-out infinite;
+    vertical-align: middle;
+    margin-bottom: 1px;
+}
+
+@keyframes livepulse {
+    0%,100% {
+        opacity: 1;
+        transform: scale(1)
+    }
+
+    50% {
+        opacity: 0.3;
+        transform: scale(0.7)
+    }
+}

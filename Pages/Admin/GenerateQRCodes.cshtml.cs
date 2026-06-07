@@ -10,7 +10,7 @@ namespace WebPOSCafe.Pages.Admin
 
         public void OnGet()
         {
-            string baseUrl = "http://192.168.254.110:5292";
+            string baseUrl = "http://192.168.254.114:5292";
 
             for (int tableNo = 1; tableNo <= 20; tableNo++)
             {

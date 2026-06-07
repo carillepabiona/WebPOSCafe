@@ -30,7 +30,9 @@ namespace WebPOSCafe.Pages.Api
                 Type = dto.OrderType,
                 TableNumber = dto.TableNumber,
                 PaymentMethod = dto.PaymentMethod,
-                Status = "pending",
+                // Line: Status = "pending",
+                // Change to:
+                Status = "awaiting_payment",
                 Total = dto.Items.Sum(i => i.UnitPrice * i.Quantity),
                 EstimatedMinutes = dto.EstimatedMinutes,
                 CreatedAt = DateTime.UtcNow,

@@ -90,22 +90,17 @@
     <!-- ── RECALL BAR ── -->
     <div class="recall-bar" id="recall-bar">
         <span class="recall-label">Bumped</span>
-        <span style="color:var(--text-dim);font-size:0.72rem">Recently completed orders appear here</span>
+        <span style="color:var(--text-dim);font-size:0.72rem">Recently served orders appear here</span>
         <div id="recall-list" style="display:flex;gap:6px;flex-wrap:wrap"></div>
     </div>
 
-    <!-- ── AUDIO (new order chime) ── -->
-    <audio id="chime" preload="auto">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAA..." type="audio/wav" />
-    </audio>
-
     <script>
             // ── CONFIG ──────────────────────────────────────────────────────────────
-            const POLL_INTERVAL = 5000;   // refresh every 5 seconds
-            let soundEnabled = true;
+            const POLL_INTERVAL = 5000;
+            let soundEnabled  = true;
             let knownOrderIds = new Set();
             let bumpedOrders  = [];
-            let checkedItems  = {};       // orderId -> Set of item indices
+            let checkedItems  = {};   // orderId -> Set of item indices
 
             // ── CLOCK ───────────────────────────────────────────────────────────────
             function updateClock() {
@@ -143,29 +138,8 @@
                 } catch(e) {}
             }
 
-            // ── TIMER HELPERS ────────────────────────────────────────────────────────
-            function getElapsedSeconds(createdAt) {
-                return Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
-            }
-
-            function formatTimer(secs) {
-                const m = Math.floor(secs / 60);
-                const s = secs % 60;
-                return `${m}:${String(s).padStart(2,'0')}`;
-            }
-
-            function timerClass(secs, status) {
-                if (status === 'ready') return 't-normal';
-                if (secs > 900) return 't-urgent';   // > 15 min
-                if (secs > 480) return 't-warning';  // > 8 min
-                return 't-normal';
-            }
-
             // ── RENDER CARD ──────────────────────────────────────────────────────────
             function renderCard(order) {
-                const secs    = getElapsedSeconds(order.createdAt);
-                const tClass  = timerClass(secs, order.status);
-                const urgent  = tClass === 't-urgent' ? 'urgent' : '';
                 const checked = checkedItems[order.id] || new Set();
 
                 const itemsHtml = order.items.map((item, idx) => {
@@ -177,35 +151,39 @@
                                onchange="toggleItem(${order.id}, ${idx}, this)" />
                         <div class="kds-item-info">
                             <div class="kds-item-name">${item.quantity}× ${item.name}</div>
-                            ${item.customization ? `<div class="kds-item-mods">${item.customization}</div>` : ''}
+                            ${item.customization       ? `<div class="kds-item-mods">${item.customization}</div>` : ''}
                             ${item.specialInstructions ? `<div class="kds-item-note">📝 ${item.specialInstructions}</div>` : ''}
                         </div>
                     </div>`;
                 }).join('');
 
-                const actionBtn = order.status === 'pending'
-                    ? `<button class="kds-btn kds-btn-start" onclick="updateStatus(${order.id},'preparing')">▶ Start</button>`
-                    : order.status === 'preparing'
-                    ? `<button class="kds-btn kds-btn-ready" onclick="updateStatus(${order.id},'ready')">✓ Ready</button>`
-                    : `<button class="kds-btn kds-btn-ready" style="opacity:0.5;cursor:default">✓ Done</button>`;
+                // ── ACTION BUTTON per status ──────────────────────────────────────────
+                let actionBtn = '';
+                if (order.status === 'pending') {
+                    actionBtn = `<button class="kds-btn kds-btn-start" onclick="updateStatus(${order.id}, 'preparing')">▶ Start</button>`;
+                } else if (order.status === 'preparing') {
+                    actionBtn = `<button class="kds-btn kds-btn-ready" onclick="updateStatus(${order.id}, 'ready')">✓ Ready</button>`;
+                } else if (order.status === 'ready') {
+                    // ── THIS IS THE FIX: "Done" now calls markServed() ────────────────
+                    actionBtn = `<button class="kds-btn kds-btn-done" onclick="markServed(${order.id})">✔ Done — Served</button>`;
+                }
 
                 const tableDisplay = order.tableNumber
                     ? `<span class="kds-table-badge">T-${order.tableNumber}</span>`
                     : `<span class="kds-type-badge take-out">Takeout</span>`;
 
                 return `
-                <div class="kds-card status-${order.status} ${urgent}" id="card-${order.id}">
+                <div class="kds-card status-${order.status}" id="card-${order.id}">
                     <div class="kds-card-head">
                         <span class="kds-order-num">${order.orderNumber}</span>
                         ${tableDisplay}
                         <span class="kds-type-badge ${order.type}">${order.type === 'dine-in' ? 'Dine-In' : 'Takeout'}</span>
-                        <span class="kds-timer ${tClass}" id="timer-${order.id}">${formatTimer(secs)}</span>
                     </div>
                     ${order.customerName ? `<div class="kds-customer">👤 ${order.customerName}</div>` : ''}
                     <div class="kds-items">${itemsHtml}</div>
                     <div class="kds-card-actions">
                         ${actionBtn}
-                        <button class="kds-btn kds-btn-bump" title="Bump (remove)" onclick="bumpOrder(${order.id})">✕</button>
+                        <button class="kds-btn kds-btn-bump" title="Bump order" onclick="bumpOrder(${order.id})">✕</button>
                     </div>
                 </div>`;
             }
@@ -216,7 +194,6 @@
                 const preparing = orders.filter(o => o.status === 'preparing');
                 const ready     = orders.filter(o => o.status === 'ready');
 
-                // Update counts
                 document.getElementById('count-pending').textContent   = pending.length;
                 document.getElementById('count-preparing').textContent = preparing.length;
                 document.getElementById('count-ready').textContent     = ready.length;
@@ -224,7 +201,7 @@
                 document.getElementById('stat-preparing').textContent  = preparing.length;
                 document.getElementById('stat-ready').textContent      = ready.length;
 
-                const empty = col => `<div class="kds-empty"><div class="kds-empty-icon">—</div><div>No orders</div></div>`;
+                const empty = () => `<div class="kds-empty"><div class="kds-empty-icon">—</div><div>No orders</div></div>`;
 
                 document.getElementById('col-pending').innerHTML =
                     pending.length   ? pending.map(renderCard).join('')   : empty();
@@ -234,36 +211,18 @@
                     ready.length     ? ready.map(renderCard).join('')     : empty();
             }
 
-            // ── TIMERS (live update without full re-render) ───────────────────────────
+            // ── STATE ─────────────────────────────────────────────────────────────────
             let currentOrders = [];
-
-            function tickTimers() {
-                currentOrders.forEach(order => {
-                    const el = document.getElementById(`timer-${order.id}`);
-                    if (!el) return;
-                    const secs = getElapsedSeconds(order.createdAt);
-                    el.textContent = formatTimer(secs);
-                    const tc = timerClass(secs, order.status);
-                    el.className = `kds-timer ${tc}`;
-                    // add urgent class to card
-                    const card = document.getElementById(`card-${order.id}`);
-                    if (card) card.classList.toggle('urgent', tc === 't-urgent');
-                });
-            }
-
-            setInterval(tickTimers, 1000);
 
             // ── FETCH ORDERS FROM SERVER ──────────────────────────────────────────────
             async function fetchOrders() {
                 try {
-                    const res  = await fetch('/api/kds/orders');
+                    const res = await fetch('/api/kds/orders');
                     if (!res.ok) return;
                     const data = await res.json();
 
-                    // Check for new orders → chime
-                    const newIds = data
-                        .filter(o => o.status === 'pending')
-                        .map(o => o.id);
+                    // Chime on genuinely new pending orders
+                    const newIds = data.filter(o => o.status === 'pending').map(o => o.id);
                     const hasNew = newIds.some(id => !knownOrderIds.has(id));
                     if (hasNew && knownOrderIds.size > 0) playChime();
                     newIds.forEach(id => knownOrderIds.add(id));
@@ -275,7 +234,7 @@
                 }
             }
 
-            // ── UPDATE STATUS ─────────────────────────────────────────────────────────
+            // ── UPDATE STATUS (pending → preparing → ready) ───────────────────────────
             async function updateStatus(orderId, newStatus) {
                 try {
                     await fetch('/api/kds/status', {
@@ -289,8 +248,53 @@
                 }
             }
 
-            // ── BUMP ORDER (remove from KDS view) ─────────────────────────────────────
-            function bumpOrder(orderId) {
+            // ── MARK SERVED (ready → served) ──────────────────────────────────────────
+            // Called by the "✔ Done — Served" button on ready cards.
+            // Sends status "served" to the server, then animates the card out.
+            async function markServed(orderId) {
+                const order = currentOrders.find(o => o.id === orderId);
+                if (!order) return;
+
+                try {
+                    await fetch('/api/kds/status', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({ orderId, newStatus: 'served' })
+                    });
+                } catch(e) {
+                    console.error('Mark served failed:', e);
+                }
+
+                // Add to recall bar (last 5)
+                bumpedOrders.unshift(order);
+                if (bumpedOrders.length > 5) bumpedOrders.pop();
+
+                document.getElementById('recall-list').innerHTML = bumpedOrders.map(o => `
+                    <div class="recall-item" onclick="recallOrder(${o.id})" title="Recall #${o.orderNumber}">
+                        <span class="recall-num">${o.orderNumber}</span>
+                        <span>${o.tableNumber ? 'T-' + o.tableNumber : 'Takeout'}</span>
+                    </div>`).join('');
+
+                // Animate card out
+                const card = document.getElementById(`card-${orderId}`);
+                if (card) {
+                    card.style.transition = 'opacity 0.2s, transform 0.2s';
+                    card.style.opacity    = '0';
+                    card.style.transform  = 'scale(0.95)';
+                    setTimeout(() => {
+                        currentOrders = currentOrders.filter(o => o.id !== orderId);
+                        renderAll(currentOrders);
+                    }, 200);
+                } else {
+                    currentOrders = currentOrders.filter(o => o.id !== orderId);
+                    renderAll(currentOrders);
+                }
+            }
+
+            // ── BUMP ORDER (force-remove from KDS without marking served) ────────────
+            // Use this to dismiss an order from view without changing its status.
+            // The next poll will bring it back if it's still active on the server.
+            async function bumpOrder(orderId) {
                 const order = currentOrders.find(o => o.id === orderId);
                 if (!order) return;
 
@@ -304,16 +308,19 @@
                         <span>${o.tableNumber ? 'T-' + o.tableNumber : 'Takeout'}</span>
                     </div>`).join('');
 
-                // Remove card from view locally
+                // Animate card out locally only
                 const card = document.getElementById(`card-${orderId}`);
                 if (card) {
                     card.style.transition = 'opacity 0.2s, transform 0.2s';
-                    card.style.opacity = '0';
-                    card.style.transform = 'scale(0.95)';
+                    card.style.opacity    = '0';
+                    card.style.transform  = 'scale(0.95)';
                     setTimeout(() => {
                         currentOrders = currentOrders.filter(o => o.id !== orderId);
                         renderAll(currentOrders);
                     }, 200);
+                } else {
+                    currentOrders = currentOrders.filter(o => o.id !== orderId);
+                    renderAll(currentOrders);
                 }
             }
 

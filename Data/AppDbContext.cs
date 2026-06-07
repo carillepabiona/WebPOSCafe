@@ -22,6 +22,8 @@ namespace WebPOSCafe.Data
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
 
+        public DbSet<StaffNotification> StaffNotifications { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // MenuItemCustomization composite key
@@ -77,6 +79,8 @@ namespace WebPOSCafe.Data
             // Soft-delete filter for Categories
             modelBuilder.Entity<Category>()
                 .HasQueryFilter(c => !c.IsDeleted);
+
+            modelBuilder.Entity<StaffNotification>().ToTable("StaffNotifications");
         }
     }
 

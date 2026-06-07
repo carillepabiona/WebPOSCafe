@@ -122,9 +122,10 @@ namespace WebPOSCafe.Pages.Cashier
 
             filtered = SelectedTab switch
             {
-                "dine-in" => filtered.Where(o => o.Type == "dine-in"),
-                "take-out" => filtered.Where(o => o.Type == "take-out"),
-                "completed" => filtered.Where(o => o.Status == "paid"),
+                // AFTER
+                "dine-in" => filtered.Where(o => o.Type == "dine-in" && o.Status != "paid" && o.Status != "served"),
+                "take-out" => filtered.Where(o => o.Type == "take-out" && o.Status != "paid" && o.Status != "served"),
+                "completed" => filtered.Where(o => o.Status == "paid" || o.Status == "served"),
                 _ => filtered
             };
 
