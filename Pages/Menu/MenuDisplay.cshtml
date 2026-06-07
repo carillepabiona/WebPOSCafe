@@ -240,8 +240,48 @@
         </div>
     </div>
 
+    <!-- ── GET STARTED MODAL ── -->
+    <div class="modal-overlay open" id="getstarted-modal">
+        <div class="modal" style="max-width:400px;overflow:hidden;padding:0">
+            <div class="getstarted-top">
+                <div class="getstarted-logo">
+                    <span class="logo-dot" style="width:14px;height:14px;margin-right:6px"></span>
+                    Verso Cafe
+                </div>
+                <div class="getstarted-table-badge">
+                    <span class="getstarted-table-label">YOUR TABLE</span>
+                    <span class="getstarted-table-num" id="gs-table-num">@Model.Table</span>
+                </div>
+                <div class="getstarted-wave">
+                    <svg viewBox="0 0 400 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0,30 C80,60 160,0 240,30 C320,60 360,10 400,30 L400,60 L0,60 Z" fill="var(--color-bg-primary, #fff)" />
+                    </svg>
+                </div>
+            </div>
+            <div class="getstarted-body">
+                <h2 class="getstarted-title">Welcome! 👋</h2>
+                <p class="getstarted-sub">
+                    You're seated at <strong>Table @Model.Table</strong>.<br>
+                    Browse our menu and place your order directly from here.
+                </p>
+                <div class="getstarted-perks">
+                    <div class="perk-item"><span class="perk-icon">🛒</span><span>Order at your own pace</span></div>
+                    <div class="perk-item"><span class="perk-icon">📋</span><span>Track your order live</span></div>
+                    <div class="perk-item"><span class="perk-icon">🔔</span><span>Call staff when ready to pay</span></div>
+                </div>
+                <button class="btn-getstarted" onclick="closeGetStarted()">
+                    Browse Menu
+                    <span style="margin-left:6px">→</span>
+                </button>
+                <p class="getstarted-foot">Table number is automatically set for you</p>
+            </div>
+        </div>
+    </div>
+
     <!-- TOAST -->
     <div class="toast-container" id="toast-container"></div>
+
+
 
     <script>
             // ── DATA FROM SERVER ──
@@ -984,6 +1024,29 @@
                   if (document.getElementById('orders-modal').classList.contains('open')) renderOrders();
                 }
               } catch(e) { /* silent — keep polling */ }
+            }
+
+            // ── GET STARTED ──────────────────────────────────────────────
+            async function closeGetStarted() {
+                const modal = document.getElementById('getstarted-modal');
+
+                // 1. Close immediately — don't wait for the API
+                modal.classList.remove('open');
+                modal.style.display = 'none';
+
+                // 2. Tell the POS this table is now Occupied
+                try {
+                    const res = await fetch(`/api/tables/by-number/${TABLE_NUMBER}/status`, {
+                        method:  'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({ status: 'Occupied' })
+                    });
+
+                    if (!res.ok) console.warn('Could not update table status:', res.status);
+
+                } catch (err) {
+                    console.warn('Table status update failed (offline?):', err);
+                }
             }
 
 

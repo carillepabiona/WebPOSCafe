@@ -24,6 +24,8 @@ namespace WebPOSCafe.Data
 
         public DbSet<StaffNotification> StaffNotifications { get; set; }
 
+        public DbSet<CafeTable> Tables { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // MenuItemCustomization composite key

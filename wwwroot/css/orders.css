@@ -993,3 +993,193 @@
         grid-template-columns: 1fr;
     }
 }
+
+#staff-notif-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9998;
+    background: #1a1a2e;
+    border-bottom: 3px solid #E8611A;
+    padding: 0;
+    animation: slideDown 0.3s ease;
+}
+
+@@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.staff-notif-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.staff-notif-icon {
+    font-size: 1.5rem;
+    animation: bellRing 0.6s ease infinite alternate;
+}
+
+@@keyframes bellRing {
+    from {
+        transform: rotate(-15deg);
+    }
+
+    to {
+        transform: rotate(15deg);
+    }
+}
+
+.staff-notif-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+    .staff-notif-text strong {
+        color: #fff;
+        font-size: 0.95rem;
+    }
+
+    .staff-notif-text span {
+        color: #aaa;
+        font-size: 0.8rem;
+    }
+
+.staff-notif-ack {
+    padding: 8px 18px;
+    background: #E8611A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+    .staff-notif-ack:hover {
+        background: #c9501a;
+    }
+
+.staff-notif-dismiss {
+    padding: 6px 10px;
+    background: transparent;
+    color: #aaa;
+    border: 1px solid #444;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+    .staff-notif-dismiss:hover {
+        color: #fff;
+        border-color: #aaa;
+    }
+
+.staff-toast {
+    background: #1a1a2e;
+    border: 1px solid #E8611A;
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 280px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    animation: toastIn 0.3s ease;
+}
+
+@@keyframes toastIn {
+    from {
+        opacity: 0;
+        transform: translateX(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.staff-toast-icon {
+    font-size: 1.3rem;
+}
+
+.staff-toast-body {
+    flex: 1;
+}
+
+.staff-toast-title {
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.staff-toast-sub {
+    color: #aaa;
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+.staff-toast-ack {
+    padding: 5px 12px;
+    background: #E8611A;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.orders-page {
+    transition: margin-top 0.3s ease;
+}
+
+/* ── Silent sync: smooth card fade-out when served ── */
+.order-card-exit {
+    animation: cardExit 0.35s ease forwards;
+    pointer-events: none;
+}
+
+@keyframes cardExit {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.96) translateY(-6px);
+    }
+}
+/* ── Silent sync: highlight when status changes ── */
+.order-card-updated {
+    animation: cardPulse 0.6s ease;
+}
+
+@@keyframes cardPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(232, 97, 26, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 0 6px rgba(232, 97, 26, 0.15);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(232, 97, 26, 0);
+    }
+}

@@ -1120,17 +1120,18 @@ body.modal-open {
     }
 
 /* Body */
-
 .cafe-modal-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 24px;
+    max-height: 65vh;
+    padding-right: 16px;
 }
 
     /* Scrollbar */
-
     .cafe-modal-body::-webkit-scrollbar {
-        width: 10px;
+        width: 6px;
     }
 
     .cafe-modal-body::-webkit-scrollbar-thumb {
@@ -1138,12 +1139,16 @@ body.modal-open {
         border-radius: 50px;
     }
 
+        .cafe-modal-body::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
     .cafe-modal-body::-webkit-scrollbar-track {
         background: #f8fafc;
+        border-radius: 50px;
     }
 
 /* Footer */
-
 .cafe-modal-footer {
     display: flex;
     justify-content: flex-end;
@@ -1153,7 +1158,6 @@ body.modal-open {
     background: #fff;
     flex-shrink: 0;
 }
-
 /* Animation */
 
 @keyframes cafeModalFade {
@@ -1295,3 +1299,60 @@ body.modal-open {
         background: #fef3c7;
         color: #92400e;
     }
+
+/* Option row price input with peso prefix */
+.opt-price-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.opt-price-prefix {
+    position: absolute;
+    left: 10px;
+    font-size: 13px;
+    color: var(--text-mute);
+    pointer-events: none;
+}
+
+.opt-price-wrap .short {
+    padding-left: 28px; /* make room for the ₱ prefix */
+    width: 100px;
+}
+
+/* Highlight checked assign items */
+.assign-item-checked {
+    background: var(--bg-accent, #fff7f0);
+    border-color: #E8611A !important;
+}
+
+.opt-label-text {
+    flex: 1;
+}
+
+.opt-price {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+}
+
+.price-positive {
+    background: #eaf3de;
+    color: #3b6d11;
+}
+
+.price-zero {
+    background: var(--bg-secondary, #f5f5f5);
+    color: var(--text-mute);
+}
+
+.opt-default-badge {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #e6f1fb;
+    color: #185fa5;
+    margin-left: 4px;
+}

@@ -7,14 +7,27 @@
 }
 
 @section TopbarActions {
-    <button class="btn-ghost-cafe">
-        <i class="ti ti-download" aria-hidden="true"></i> Export
-    </button>
+    <div class="dropdown">
+        <button class="btn-ghost-cafe dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="ti ti-download" aria-hidden="true"></i> Export
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+                <a class="dropdown-item" href="#" id="exportCsvBtn">
+                    <i class="ti ti-file-text" style="margin-right:6px"></i> Export as CSV
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="#" id="exportJsonBtn">
+                    <i class="ti ti-file-code" style="margin-right:6px"></i> Export as JSON
+                </a>
+            </li>
+        </ul>
+    </div>
     <button class="btn-primary-cafe" data-bs-toggle="modal" data-bs-target="#addAccountModal">
         <i class="ti ti-plus" aria-hidden="true"></i> Add Account
     </button>
 }
-
 <!-- ── Stat Cards ───────────────────────────────────────────── -->
 <div class="stats-row">
 
@@ -525,5 +538,55 @@
                     addModal.show();
                 </text>
         }
+
+                // ── Export helpers ──────────────────────────────────────────
+        function getVisibleRows() {
+            return [...document.querySelectorAll('.data-table tbody tr')]
+                .filter(row => row.style.display !== 'none')
+                .map(row => ({
+                    FullName:    row.querySelector('.av-name')?.textContent.trim()        ?? '',
+                    Username:    row.querySelector('.av-email')?.textContent.trim()       ?? '',
+                    Role:        row.querySelector('.role-badge')?.textContent.trim()     ?? '',
+                    Status:      row.querySelector('.status-dot')?.textContent.trim()     ?? '',
+                    DateCreated: row.cells[2]?.textContent.trim()                         ?? ''
+                }));
+        }
+
+        function downloadFile(filename, content, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url  = URL.createObjectURL(blob);
+            const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        document.getElementById('exportCsvBtn').addEventListener('click', function (e) {
+            e.preventDefault();
+            const rows = getVisibleRows();
+            if (!rows.length) { alert('No accounts to export.'); return; }
+
+            const headers = ['Full Name', 'Username', 'Role', 'Status', 'Date Created'];
+            const escape  = v => `"${String(v).replace(/"/g, '""')}"`;
+            const csv     = [
+                headers.map(escape).join(','),
+                ...rows.map(r => [r.FullName, r.Username, r.Role, r.Status, r.DateCreated].map(escape).join(','))
+            ].join('\r\n');
+
+            downloadFile(`staff-accounts-${new Date().toISOString().slice(0,10)}.csv`, csv, 'text/csv;charset=utf-8;');
+        });
+
+        document.getElementById('exportJsonBtn').addEventListener('click', function (e) {
+            e.preventDefault();
+            const rows = getVisibleRows();
+            if (!rows.length) { alert('No accounts to export.'); return; }
+
+            downloadFile(
+                `staff-accounts-${new Date().toISOString().slice(0,10)}.json`,
+                JSON.stringify(rows, null, 2),
+                'application/json'
+            );
+        });
     </script>
 }

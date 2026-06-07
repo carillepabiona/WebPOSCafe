@@ -1,12 +1,22 @@
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using WebPOSCafe.Data;
+using WebPOSCafe.Models;
 
 namespace WebPOSCafe.Pages.Cashier
 {
     public class TablesModel : PageModel
     {
-        public void OnGet()
+        private readonly AppDbContext _db;
+        public TablesModel(AppDbContext db) => _db = db;
+
+        public List<CafeTable> Tables { get; set; } = new();
+
+        public async Task OnGetAsync()
         {
+            Tables = await _db.Tables
+                               .OrderBy(t => t.TableNumber)
+                               .ToListAsync();
         }
     }
 }

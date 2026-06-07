@@ -82,57 +82,75 @@
         </div>
     </div>
 </div>
-
+@Html.AntiForgeryToken()
 <script>
     function togglePassword() {
-        const input = document.getElementById("password");
+        const input    = document.getElementById("password");
         const isHidden = input.type === "password";
         input.type = isHidden ? "text" : "password";
         document.getElementById("icon-show").style.display = isHidden ? "none" : "";
-        document.getElementById("icon-hide").style.display = isHidden ? "" : "none";
-        this.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+        document.getElementById("icon-hide").style.display = isHidden ? ""     : "none";
     }
 
-    function fillRole(username, password) {
-        document.getElementById("username").value = username;
-        document.getElementById("password").value = password;
-        document.getElementById("error-message").style.display = "none";
-    }
-
-    function login() {
+    async function login() {
         const username = document.getElementById("username").value.trim();
         const password = document.getElementById("password").value.trim();
         const errorBox = document.getElementById("error-message");
         const errorTxt = document.getElementById("error-text");
+        const btn      = document.getElementById("login-btn");
 
         if (!username || !password) {
-            errorTxt.textContent = "Please enter your username and password.";
+            errorTxt.textContent   = "Please enter your username and password.";
             errorBox.style.display = "flex";
             return;
         }
 
-        errorBox.style.display = "none";
-        document.getElementById("login-btn").disabled = true;
-        document.getElementById("btn-text").textContent = "Signing in...";
+        errorBox.style.display                                = "none";
+        btn.disabled                                          = true;
+        document.getElementById("btn-text").textContent      = "Signing in...";
         document.getElementById("btn-spinner").style.display = "inline-block";
 
-        // ── Hardcoded credentials — replace with a real API call later ──
-        setTimeout(() => {
-            if (username === "admin" && password === "admin123") {
-                window.location.href = "/Admin/AccountManagement";
-            } else if (username === "cashier" && password === "cashier123") {
-                window.location.href = "/Cashier/Dashboard";
+        try {
+            // ── Get the antiforgery token from the hidden input ──
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? "";
+
+            const res = await fetch("?handler=Login", {
+                method:  "POST",
+                headers: {
+                    "Content-Type":              "application/json",
+                    "RequestVerificationToken":  token
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!res.ok) {
+                throw new Error(`Server returned ${res.status}`);
+            }
+
+            const data = await res.json();
+
+            if (data.success) {
+                document.getElementById("btn-text").textContent = "Redirecting…";
+                window.location.href = data.redirect;
             } else {
-                errorTxt.textContent = "Invalid username or password.";
+                errorTxt.textContent   = data.message;
                 errorBox.style.display = "flex";
-                document.getElementById("login-btn").disabled = false;
-                document.getElementById("btn-text").textContent = "Sign In";
+                btn.disabled           = false;
+                document.getElementById("btn-text").textContent      = "Sign In";
                 document.getElementById("btn-spinner").style.display = "none";
             }
-        }, 700);
+
+        } catch (err) {
+            console.error("Login error:", err);
+            errorTxt.textContent   = "Network error. Please try again.";
+            errorBox.style.display = "flex";
+            btn.disabled           = false;
+            document.getElementById("btn-text").textContent      = "Sign In";
+            document.getElementById("btn-spinner").style.display = "none";
+        }
     }
 
-    document.addEventListener("keydown", function (e) {
+    document.addEventListener("keydown", e => {
         if (e.key === "Enter") login();
     });
 </script>

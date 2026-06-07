@@ -15,6 +15,8 @@ namespace WebPOSCafe.Models
         public int EstimatedMinutes { get; set; }
         public string SpecialInstructions { get; set; } = "";
         public DateTime CreatedAt { get; set; }
+        public DateTime? ServedAt { get; set; }
+
         public List<OrderItem> Items { get; set; } = new();
     }
 }

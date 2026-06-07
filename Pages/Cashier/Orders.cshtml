@@ -23,198 +23,7 @@
 
 <!-- ── CALL STAFF NOTIFICATION TOAST LIST ── -->
 <div id="staff-toast-stack" style="position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;"></div>
-
-<style>
-    #staff-notif-banner {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 9998;
-        background: #1a1a2e;
-        border-bottom: 3px solid #E8611A;
-        padding: 0;
-        animation: slideDown 0.3s ease;
-    }
-
-    @@keyframes slideDown {
-        from {
-            transform: translateY(-100%);
-        }
-
-        to {
-            transform: translateY(0);
-        }
-    }
-
-    .staff-notif-inner {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 12px 24px;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-
-    .staff-notif-icon {
-        font-size: 1.5rem;
-        animation: bellRing 0.6s ease infinite alternate;
-    }
-
-    @@keyframes bellRing {
-        from {
-            transform: rotate(-15deg);
-        }
-
-        to {
-            transform: rotate(15deg);
-        }
-    }
-
-    .staff-notif-text {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-        .staff-notif-text strong {
-            color: #fff;
-            font-size: 0.95rem;
-        }
-
-        .staff-notif-text span {
-            color: #aaa;
-            font-size: 0.8rem;
-        }
-
-    .staff-notif-ack {
-        padding: 8px 18px;
-        background: #E8611A;
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-        .staff-notif-ack:hover {
-            background: #c9501a;
-        }
-
-    .staff-notif-dismiss {
-        padding: 6px 10px;
-        background: transparent;
-        color: #aaa;
-        border: 1px solid #444;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        cursor: pointer;
-    }
-
-        .staff-notif-dismiss:hover {
-            color: #fff;
-            border-color: #aaa;
-        }
-
-    .staff-toast {
-        background: #1a1a2e;
-        border: 1px solid #E8611A;
-        border-radius: 10px;
-        padding: 12px 16px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 280px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        animation: toastIn 0.3s ease;
-    }
-
-    @@keyframes toastIn {
-        from {
-            opacity: 0;
-            transform: translateX(40px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    .staff-toast-icon {
-        font-size: 1.3rem;
-    }
-
-    .staff-toast-body {
-        flex: 1;
-    }
-
-    .staff-toast-title {
-        color: #fff;
-        font-size: 0.85rem;
-        font-weight: 600;
-    }
-
-    .staff-toast-sub {
-        color: #aaa;
-        font-size: 0.75rem;
-        margin-top: 2px;
-    }
-
-    .staff-toast-ack {
-        padding: 5px 12px;
-        background: #E8611A;
-        color: #fff;
-        border: none;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-
-    .orders-page {
-        transition: margin-top 0.3s ease;
-    }
-
-    /* ── Silent sync: smooth card fade-out when served ── */
-    .order-card-exit {
-        animation: cardExit 0.35s ease forwards;
-        pointer-events: none;
-    }
-
-    @@keyframes cardExit {
-        from {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        to {
-            opacity: 0;
-            transform: scale(0.96) translateY(-6px);
-        }
-    }
-    /* ── Silent sync: highlight when status changes ── */
-    .order-card-updated {
-        animation: cardPulse 0.6s ease;
-    }
-
-    @@keyframes cardPulse {
-        0% {
-            box-shadow: 0 0 0 0 rgba(232, 97, 26, 0.5);
-        }
-
-        50% {
-            box-shadow: 0 0 0 6px rgba(232, 97, 26, 0.15);
-        }
-
-        100% {
-            box-shadow: 0 0 0 0 rgba(232, 97, 26, 0);
-        }
-    }
-</style>
+>
 
 <div class="orders-page">
     <!-- Header -->
@@ -227,7 +36,9 @@
             <div class="stat-badge">
                 <span class="stat-label">In Progress</span>
                 <span class="stat-value" id="hdr-inprogress">
-                    @Model.AllOrders.Count(o => o.Status == "paid" || o.Status == "served")
+                    @Model.AllOrders.Count(o => o.Status == "pending"
+                        || o.Status == "preparing"
+                        || o.Status == "ready")
                 </span>
             </div>
             <div class="stat-badge">
@@ -301,7 +112,7 @@
                     <span>@tab.Item2</span>
                     <span class="tab-badge" id="tab-badge-@tab.Item1">
                         @(tab.Item1 == "completed"
-                            ? Model.OrdersFiltered.Count(o => o.Status == "paid" || o.Status == "served")
+                            ? Model.AllOrders.Count(o => o.Status == "served")
                             : Model.OrdersFiltered.Count(o => o.Type == tab.Item1))
                     </span>
                 </button>
@@ -476,7 +287,7 @@
                         <span>₱@((order.Total * 0.85m).ToString("0.00"))</span>
                     </div>
                     <div class="summary-row">
-                        <span>Tax (10%)</span>
+                        <span>Tax (12%)</span>
                         <span>₱@((order.Total * 0.10m).ToString("0.00"))</span>
                     </div>
                     <div class="summary-row total">
@@ -558,11 +369,7 @@
                     <input type="hidden" name="selectedTab" value="@Model.SelectedTab" />
                     <input type="hidden" name="selectedFilter" value="@Model.SelectedFilter" />
                     <button type="submit" class="action-btn btn-paid">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                            <line x1="1" y1="10" x2="23" y2="10"></line>
-                        </svg>
-                        Mark Paid
+                        Mark Served
                     </button>
                 </form>
             }
@@ -608,7 +415,7 @@
     const ACTIVE_FILTER = '@Model.SelectedFilter';
 
     // Statuses that belong in the "completed" tab
-    const COMPLETED_STATUSES = new Set(['served', 'completed', 'paid']);
+    const COMPLETED_STATUSES = new Set(['served']);
 
     // Statuses that are still active (should show in dine-in / take-out tabs)
     const ACTIVE_STATUSES = new Set(['awaiting_payment', 'pending', 'preparing', 'ready']);
@@ -636,12 +443,10 @@
                 // ── 1. Update the status badge on the card ──────────────────
                 const badge = document.getElementById(`status-badge-${order.id}`);
                 if (badge && badge.textContent !== newStatus) {
-                    const oldStatus = badge.dataset.prev || badge.textContent;
-                    badge.textContent = newStatus;
-                    badge.className   = `order-status-badge ${newStatus}`;
+                    badge.textContent  = newStatus;
+                    badge.className    = `order-status-badge ${newStatus}`;
                     badge.dataset.prev = newStatus;
 
-                    // Also update the card's own class for color theming
                     const card = document.getElementById(`order-card-${order.id}`);
                     if (card) {
                         card.className = card.className
@@ -649,9 +454,8 @@
                             .trim() + ` order-${newStatus}`;
                         card.dataset.status = newStatus;
 
-                        // Flash pulse only when status actually changed
                         card.classList.remove('order-card-updated');
-                        void card.offsetWidth; // reflow to retrigger animation
+                        void card.offsetWidth;
                         card.classList.add('order-card-updated');
                     }
                 }
@@ -684,16 +488,23 @@
                     if (rebuilt) panelActions.innerHTML = rebuilt;
                 }
 
-                // ── 5. Remove cards that KDS marked as served/done ───────────
-                // Only remove from active tabs — don't touch completed tab
-                if (COMPLETED_STATUSES.has(newStatus) && ACTIVE_TAB !== 'completed') {
-                    const card = document.getElementById(`order-card-${order.id}`);
-                    if (card && !card.classList.contains('order-card-exit')) {
-                        card.classList.add('order-card-exit');
-                        setTimeout(() => {
-                            card.remove();
-                            checkEmptyState();
-                        }, 360);
+                // ── 5. Handle completed status ────────────────────────────────
+                if (COMPLETED_STATUSES.has(newStatus)) {
+                    if (ACTIVE_TAB !== 'completed') {
+                        // Remove from active tabs with fade-out animation
+                        const card = document.getElementById(`order-card-${order.id}`);
+                        if (card && !card.classList.contains('order-card-exit')) {
+                            card.classList.add('order-card-exit');
+                            setTimeout(() => {
+                                card.remove();
+                                checkEmptyState();
+                            }, 360);
+                        }
+                    } else {
+                        // On completed tab: inject the card if it isn't already there
+                        if (!document.getElementById(`order-card-${order.id}`)) {
+                            injectCompletedCard(order);
+                        }
                     }
                 }
 
@@ -703,12 +514,12 @@
             });
 
             // ── 6. Update header stat counters silently ──────────────────────
-            const hdrTotal = document.getElementById('hdr-total');
+            const hdrTotal  = document.getElementById('hdr-total');
             const hdrInProg = document.getElementById('hdr-inprogress');
             const hdrReady  = document.getElementById('hdr-ready');
             if (hdrTotal)  hdrTotal.textContent  = totalCount;
-            if (hdrInProg) hdrInProg.textContent  = inProgressCount;
-            if (hdrReady)  hdrReady.textContent   = readyCount;
+            if (hdrInProg) hdrInProg.textContent = inProgressCount;
+            if (hdrReady)  hdrReady.textContent  = readyCount;
 
             // ── 7. Apply active filter: hide cards that don't match ──────────
             if (ACTIVE_FILTER !== 'all') {
@@ -721,9 +532,91 @@
                 });
             }
 
+            // ── 8. Update completed tab badge count ──────────────────────────
+            // After the header stat counters update:
+            const completedCount = orders.filter(o => COMPLETED_STATUSES.has(o.status)).length;
+            const completedBadge = document.getElementById('tab-badge-completed');
+            if (completedBadge) completedBadge.textContent = completedCount;
+
         } catch(e) {
             console.error('Sync error:', e);
         }
+    }
+        function injectCompletedCard(order) {
+        const grid = document.getElementById('orders-grid');
+        if (!grid) return;
+
+        const typeLabel = order.type === 'dine-in' ? '🍽️ Dine-In' : '🛍️ Take-Out';
+        const itemsHtml = (order.items || []).slice(0, 2).map(item =>
+            `<div class="item-preview">
+                <span class="item-qty">${item.quantity}×</span>
+                <span class="item-name">${item.name}</span>
+            </div>`
+        ).join('');
+        const moreHtml = (order.items || []).length > 2
+            ? `<div class="items-more">+${order.items.length - 2} more items</div>`
+            : '';
+        const tableHtml = order.table
+            ? `<div class="detail-item">
+                   <span class="detail-label">Table</span>
+                   <span class="detail-value">${order.table}</span>
+               </div>`
+            : '';
+
+        const card = document.createElement('div');
+        card.className = `order-card order-${order.status}`;
+        card.id = `order-card-${order.id}`;
+        card.dataset.status = order.status;
+        card.dataset.type = order.type || '';
+        card.style.animation = 'cardPulse 0.6s ease';
+        card.setAttribute('onclick', `openPanel(${order.id})`);
+        card.innerHTML = `
+            <div class="order-card-header">
+                <div>
+                    <span class="order-number">#${order.orderNumber}</span>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">
+                        ${order.customerName || ''}
+                    </div>
+                </div>
+                <div class="order-badges">
+                    <span class="order-type-badge ${order.type}">${typeLabel}</span>
+                    <span class="order-status-badge ${order.status}"
+                          id="status-badge-${order.id}">${order.status}</span>
+                </div>
+            </div>
+            <div class="order-card-content">
+                <div class="order-details-grid">
+                    ${tableHtml}
+                    <div class="detail-item">
+                        <span class="detail-label">Items</span>
+                        <span class="detail-value">${order.itemCount || (order.items || []).length}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Time</span>
+                        <span class="detail-value time-badge" id="elapsed-${order.id}">${order.elapsedTime || ''}</span>
+                    </div>
+                </div>
+                <div class="items-preview">${itemsHtml}${moreHtml}</div>
+            </div>
+            <div class="order-card-footer">
+                <div class="order-price">
+                    <span class="price-label">Total</span>
+                    <span class="price-value">₱${(order.total || 0).toFixed(2)}</span>
+                </div>
+                <a class="btn-view" href="#" onclick="event.stopPropagation(); openPanel(${order.id}); return false;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    View
+                </a>
+            </div>`;
+
+        grid.prepend(card); // newest completed orders appear first
+
+        // Hide the empty state if it was showing
+        const empty = document.getElementById('empty-state');
+        if (empty) empty.style.display = 'none';
     }
 
     // Show empty state message if grid becomes empty

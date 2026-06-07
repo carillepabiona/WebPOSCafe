@@ -378,13 +378,13 @@ namespace WebPOSCafe.Pages.Admin
         // POST: Save Customization (Add + Edit)
         // ══════════════════════════════════════════════════════════
         public async Task<IActionResult> OnPostSaveCustomizationAsync(
-            Guid? Id,
-            string Name,
-            string Type,
-            bool IsRequired,
-            int DisplayOrder,
-            List<CustomizationOptionInput>? Options,
-            string activeTab = "customizations")
+    Guid? Id,
+    string Name,
+    string Type,
+    bool IsRequired,
+    int DisplayOrder,
+    List<CustomizationOptionInput>? Options,
+    string activeTab = "customizations")
         {
             try
             {
@@ -413,36 +413,54 @@ namespace WebPOSCafe.Pages.Admin
                         }).ToList();
 
                     _db.Customizations.Add(cust);
+                    await _db.SaveChangesAsync();
                 }
                 else
                 {
+                    // Load parent only — no Include, no tracked children yet
                     var cust = await _db.Customizations
-                        .Include(c => c.Options)
                         .FirstOrDefaultAsync(c => c.Id == Id);
 
                     if (cust == null) return NotFound();
 
+                    // Load existing option IDs directly from DB, untracked
+                    var existingOptionIds = await _db.CustomizationOptions
+                        .Where(o => o.CustomizationId == Id)
+                        .Select(o => o.Id)
+                        .ToListAsync();
+
+                    // Delete each option by fetching a stub entity — avoids stale tracking
+                    foreach (var optId in existingOptionIds)
+                    {
+                        var stub = new CustomizationOption { Id = optId };
+                        _db.CustomizationOptions.Attach(stub);
+                        _db.CustomizationOptions.Remove(stub);
+                    }
+
+                    await _db.SaveChangesAsync(); // flush deletes cleanly
+
+                    // Update scalar fields
                     cust.Name = Name;
                     cust.Type = Type;
                     cust.IsRequired = IsRequired;
                     cust.DisplayOrder = DisplayOrder;
                     cust.UpdatedAt = DateTime.UtcNow;
 
-                    _db.CustomizationOptions.RemoveRange(cust.Options);
+                    // Reinsert options with fresh GUIDs
+                    var newOptions = Options?.Select((o, i) => new CustomizationOption
+                    {
+                        Id = Guid.NewGuid(),
+                        CustomizationId = cust.Id,
+                        OptionLabel = o.OptionLabel,
+                        PriceModifier = o.PriceModifier,
+                        IsDefault = o.IsDefault,
+                        DisplayOrder = i
+                    }).ToList() ?? new List<CustomizationOption>();
 
-                    if (Options != null)
-                        cust.Options = Options.Select((o, i) => new CustomizationOption
-                        {
-                            Id = Guid.NewGuid(),
-                            CustomizationId = cust.Id,
-                            OptionLabel = o.OptionLabel,
-                            PriceModifier = o.PriceModifier,
-                            IsDefault = o.IsDefault,
-                            DisplayOrder = i
-                        }).ToList();
+                    _db.CustomizationOptions.AddRange(newOptions);
+                    await _db.SaveChangesAsync(); // flush parent update + new options
                 }
 
-                await _db.SaveChangesAsync();
                 TempData["Success"] = "Customization saved.";
             }
             catch (Exception ex)
@@ -619,8 +637,9 @@ namespace WebPOSCafe.Pages.Admin
         {
             public Guid? Id { get; set; }
             public string OptionLabel { get; set; } = "";
-            public decimal PriceModifier { get; set; }
-            public bool IsDefault { get; set; }
+            public decimal PriceModifier { get; set; } = 0;
+            public bool IsDefault { get; set; } = false;
+            public int DisplayOrder { get; set; } = 0;
         }
     }
 }

@@ -5,6 +5,16 @@
     ViewData["Title"] = "Table QR Codes";
 }
 
+@section TopbarActions {
+    <!-- Page Header -->
+    <button class="btn-print"
+            onclick="window.print()">
+        Print QR Codes
+    </button>
+
+}
+
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -12,21 +22,14 @@
     <style>
 
 
-            .page-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 25px;
-            }
-
             .btn-print {
                 background: #E8611A;
                 color: white;
                 border: none;
-                padding: 12px 24px;
+                padding: 6px 12px;
                 border-radius: 8px;
                 cursor: pointer;
-                font-weight: 600;
+                font-weight: 400;
             }
 
             .qr-grid {
@@ -88,13 +91,6 @@
     </style>
 </head>
 <body>
-
-    <div class="page-header">
-        <button class="btn-print"
-                onclick="window.print()">
-            Print QR Codes
-        </button>
-    </div>
 
     <div class="qr-grid">
 
