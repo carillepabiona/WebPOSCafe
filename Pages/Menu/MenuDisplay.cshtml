@@ -59,7 +59,7 @@
 </head>
 <body>
 
-    <!-- ── NAV ────────────────────────────────────────── -->
+    <!-- NAV -->
     <nav class="nav" aria-label="Main navigation">
         <a class="nav-brand" href="#">
             <span class="logo-dot" aria-hidden="true"></span> Verso Cafe
@@ -85,7 +85,8 @@
             </button>
         </div>
     </nav>
-    <!-- ── HERO ───────────────────────────────────────── -->
+
+    <!-- HERO -->
     <header class="hero">
         <h1 class="hero-title">What are you craving?</h1>
         <p class="hero-sub">Fresh brews &amp; bites, crafted with care</p>
@@ -95,10 +96,8 @@
         </div>
     </header>
 
-    <!-- ── MAIN ───────────────────────────────────────── -->
+    <!-- MAIN -->
     <main class="main">
-
-        <!-- Horizontal Categories -->
         <div class="categories-bar" role="tablist" aria-label="Menu categories">
             <button class="cat-btn active" onclick="scrollToAll(this)" data-cat="all">
                 <span class="cat-dot" style="background:#e47835" aria-hidden="true"></span>
@@ -106,13 +105,10 @@
             </button>
             <div id="cat-buttons" class="categories-scroll"></div>
         </div>
-
-        <!-- Menu Content -->
         <div class="menu-content" id="menu-content"></div>
-
     </main>
 
-    <!-- ── ITEM DETAIL MODAL ──────────────────────────── -->
+    <!-- ITEM DETAIL MODAL -->
     <div class="modal-overlay" id="item-modal" role="dialog" aria-modal="true" aria-labelledby="modal-name">
         <div class="modal" style="max-width:540px">
             <div class="modal-img" id="modal-img">
@@ -148,21 +144,19 @@
         </div>
     </div>
 
-    <!-- ── CART MODAL ─────────────────────────────────── -->
+    <!-- CART MODAL -->
     <div class="modal-overlay" id="cart-modal" role="dialog" aria-modal="true" aria-label="Your cart">
         <div class="modal cart-modal">
             <div class="cart-header">
                 <h2 class="cart-title">Your Cart</h2>
-                <button class="cart-close" onclick="closeCart()" aria-label="Close">
-                    ✕
-                </button>
+                <button class="cart-close" onclick="closeCart()" aria-label="Close">✕</button>
             </div>
             <div class="cart-body" id="cart-body"></div>
             <div class="cart-footer" id="cart-footer"></div>
         </div>
     </div>
 
-    <!-- ── CHECKOUT MODAL ─────────────────────────────── -->
+    <!-- CHECKOUT MODAL -->
     <div class="modal-overlay" id="checkout-modal" role="dialog" aria-modal="true" aria-label="Place order">
         <div class="modal checkout-modal">
             <div class="cart-header">
@@ -199,26 +193,83 @@
         </div>
     </div>
 
-    <!-- ── ORDER SUCCESS MODAL ────────────────────────── -->
-    <div class="modal-overlay" id="success-modal" role="dialog" aria-modal="true" aria-label="Order confirmation">
-        <div class="modal" style="max-width:420px">
-            <div class="success-body">
+    <!--
+        CALL STAFF MODAL (POST-ORDER — PRIMARY PAYMENT FLOW)
+        ════════════════════════════════════════════════════════
+        This modal opens IMMEDIATELY after placeOrder() succeeds.
+        It replaces the old "success modal" as the first screen
+        the customer sees after placing their order.
+
+        FLOW:
+          placeOrder() succeeds
+            └─► openPostOrderCallStaff()   ← opens this modal
+                  ├─ [callstaff-pending]   ← "Order placed! Call staff to pay"
+                  ├─ [callstaff-waiting]   ← "Staff notified — waiting…" (timer)
+                  └─ [callstaff-done]      ← "All done! Enjoy." (shows Done btn)
+
+        NOTE: There is NO cancel/close button once the order is placed.
+              The customer must complete the payment flow or tap
+              "Back to Menu" only after payment is confirmed.
+        ════════════════════════════════════════════════════════
+    -->
+    <div class="modal-overlay" id="postorder-modal" role="dialog" aria-modal="true" aria-label="Order placed">
+        <div class="modal" style="max-width:420px" id="postorder-inner">
+
+            <!-- PANEL 1 — Order placed. Prompt customer to call staff for payment. -->
+            <div class="success-body" id="postorder-pending">
                 <div class="success-icon" aria-hidden="true">☕✨</div>
                 <h2 class="success-title">Order Placed!</h2>
-                <p class="success-sub">We're preparing your order with care. You'll be notified when it's ready.</p>
-                <div class="order-number" id="success-order-number"></div>
-                <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem" id="success-details"></div>
-                <button class="btn-back-menu"
-                        style="background:#fff;color:var(--text-2);border:1px solid var(--border-strong);box-shadow:none;margin-bottom:10px"
-                        onclick="markTableAvailable()">
-                    🚪 We're leaving — free this table
+                <p class="success-sub">Your order is confirmed. Call staff when you're ready to pay.</p>
+                <div class="order-number" id="postorder-number"></div>
+                <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem" id="postorder-details"></div>
+
+                <!-- PRIMARY: Call Staff — no cancel, payment is required -->
+                <button class="btn-callstaff-trigger"
+                        id="btn-postorder-callstaff"
+                        onclick="doPostOrderCallStaff()"
+                        style="width:100%;margin-bottom:10px">
+                    🔔 Call Staff for Payment
                 </button>
-                <button class="btn-back-menu" onclick="closeSuccess()">Back to Menu</button>
+
+                <!-- SECONDARY: Go back to menu to add more items -->
+                <button class="btn-back-menu" onclick="closePostOrderModal()">
+                    Browse Menu (pay later)
+                </button>
             </div>
+
+            <!-- PANEL 2 — Staff has been notified. Show elapsed timer. No close. -->
+            <div class="success-body" id="postorder-waiting" style="display:none">
+                <div class="success-icon" aria-hidden="true">⏳</div>
+                <h2 class="success-title">Waiting for staff…</h2>
+                <p class="success-sub">A staff member is on their way to your table.</p>
+                <div class="callstaff-timer" id="postorder-timer">0:00</div>
+                <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem">Please stay seated — staff will collect payment shortly.</p>
+            </div>
+
+            <!-- PANEL 3 — Payment confirmed. Session over. Done = free the table. -->
+            <div class="success-body" id="postorder-done" style="display:none">
+                <div class="success-icon" aria-hidden="true">✅🎉</div>
+                <h2 class="success-title">All done — enjoy!</h2>
+                <p class="success-sub">Payment confirmed. Thank you for visiting Verso Cafe!</p>
+                <div class="order-number" id="postorder-done-number"></div>
+
+                <!-- PRIMARY: Free the table and end the session -->
+                <button class="btn-add-to-cart"
+                        style="width:100%;margin-bottom:10px;background:var(--brand)"
+                        onclick="markTableAvailable()">
+                    🚪 Done — Free This Table
+                </button>
+
+                <!-- SECONDARY: Browse more (edge case — e.g. customer wants another round) -->
+                <button class="btn-back-menu" onclick="closePostOrderDone()">
+                    Back to Menu
+                </button>
+            </div>
+
         </div>
     </div>
 
-    <!-- ── ORDERS MODAL ───────────────────────────────── -->
+    <!-- ORDERS MODAL -->
     <div class="modal-overlay" id="orders-modal" role="dialog" aria-modal="true" aria-label="My orders">
         <div class="modal orders-modal">
             <div class="cart-header">
@@ -229,7 +280,13 @@
         </div>
     </div>
 
-    <!-- ── CALL STAFF MODAL ───────────────────────────── -->
+    <!--
+        CALL STAFF MODAL (SECONDARY — from My Orders panel)
+        Used when customer taps "Call Staff for Payment" on a
+        Ready/Served order from the My Orders list.
+        This modal DOES have a cancel button since it's not
+        the primary post-checkout flow.
+    -->
     <div class="modal-overlay" id="callstaff-modal" role="dialog" aria-modal="true" aria-label="Call staff">
         <div class="modal" style="max-width:420px" id="callstaff-inner">
             <div class="success-body" id="callstaff-idle">
@@ -254,7 +311,7 @@
         </div>
     </div>
 
-    <!-- ── GET STARTED MODAL ──────────────────────────── -->
+    <!-- GET STARTED MODAL -->
     <div class="modal-overlay" id="getstarted-modal" role="dialog" aria-modal="true" aria-label="Welcome">
         <div class="modal" style="max-width:420px;overflow:hidden;padding:0">
             <div class="getstarted-top">
@@ -292,7 +349,7 @@
         </div>
     </div>
 
-    <!-- ── LEAVE CONFIRMATION SHEET ───────────────────── -->
+    <!-- LEAVE CONFIRMATION SHEET -->
     <div class="leave-confirm-overlay" id="leave-confirm" role="dialog" aria-modal="true" aria-label="End session">
         <div class="leave-confirm-sheet">
             <div class="leave-confirm-handle" aria-hidden="true"></div>
@@ -310,838 +367,1032 @@
         </div>
     </div>
 
-    <!-- TOAST -->
+
+
+    <!-- TOAST CONTAINER -->
     <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
 
     <script>
-                // ══════════════════════════════════════════════
-                // SESSION GATE — Must be first thing that runs
-                // ══════════════════════════════════════════════
-                (function () {
-                    const TABLE      = "@Model.Table";
-                    const SESSION_KEY = 'qr_session_table_' + TABLE;
-                    const params      = new URLSearchParams(window.location.search);
-                    const urlToken    = params.get('token');
+            // ══════════════════════════════════════════════════════════════════
+            // SESSION GATE (IIFE)
+            // ══════════════════════════════════════════════════════════════════
+            (function () {
+                const TABLE       = "@Model.Table";
+                const SESSION_KEY = 'qr_session_table_' + TABLE;
+                const params      = new URLSearchParams(window.location.search);
+                const urlToken    = params.get('token');
 
-                    if (urlToken) {
-                        // Fresh QR scan — save token, clean URL, show welcome modal
-                        sessionStorage.setItem(SESSION_KEY, urlToken);
-                        const cleanUrl = window.location.pathname + '?table=' + TABLE;
-                        history.replaceState(null, '', cleanUrl);
+                if (urlToken) {
+                    sessionStorage.setItem(SESSION_KEY, urlToken);
+                    const cleanUrl = window.location.pathname + '?table=' + TABLE;
+                    history.replaceState(null, '', cleanUrl);
+                    document.addEventListener('DOMContentLoaded', () => {
+                        document.getElementById('getstarted-modal').classList.add('open');
+                    });
+                } else {
+                    const stored = sessionStorage.getItem(SESSION_KEY);
+                    if (!stored) {
+                        const autoToken = Math.random().toString(36).substr(2, 12).toUpperCase();
+                        sessionStorage.setItem(SESSION_KEY, autoToken);
                         document.addEventListener('DOMContentLoaded', () => {
                             document.getElementById('getstarted-modal').classList.add('open');
                         });
-                    } else {
-                        const stored = sessionStorage.getItem(SESSION_KEY);
-                        if (!stored) {
-                            // ── FIX: auto-generate a session instead of hard-redirecting ──
-                            // This handles: browser restores the tab, sharing the link,
-                            // or QR code was generated without a token in the URL.
-                            const autoToken = Math.random().toString(36).substr(2, 12).toUpperCase();
-                            sessionStorage.setItem(SESSION_KEY, autoToken);
-                            // Show get-started modal so the guest still goes through onboarding
-                            document.addEventListener('DOMContentLoaded', () => {
-                                document.getElementById('getstarted-modal').classList.add('open');
-                            });
-                        }
-                        // else: existing valid session — proceed silently
-                    }
-                })();
-
-                const CATEGORIES = @Html.Raw(categoriesJson);
-                const MENU_ITEMS = @Html.Raw(menuItemsJson);
-                const TABLE_NUMBER = "@Model.Table";
-
-                let cart = JSON.parse(localStorage.getItem('bh_cart') || '[]');
-                let orders = JSON.parse(localStorage.getItem('bh_orders') || '[]');
-                let currentItem = null;
-                let currentQty = 1;
-                let currentSelections = {};
-                let currentAddons = new Set();
-                let currentOrderType = 'Dine In';
-
-                let callStaffTimerInterval = null;
-                let callStaffSeconds = 0;
-                let callStaffPolling = null;
-                let callStaffOrderNumber = null;
-
-                function fmt(n) { return '₱' + parseFloat(n).toFixed(2); }
-                function genId() { return Math.random().toString(36).substr(2,9).toUpperCase(); }
-                function saveCart() { localStorage.setItem('bh_cart', JSON.stringify(cart)); }
-                function saveOrders() { localStorage.setItem('bh_orders', JSON.stringify(orders)); }
-                function toast(msg) {
-                    const el = document.createElement('div');
-                    el.className = 'toast'; el.textContent = msg;
-                    document.getElementById('toast-container').appendChild(el);
-                    setTimeout(() => el.remove(), 2900);
-                }
-                function updateCartBadge() {
-                    const total = cart.reduce((s,i) => s + i.qty, 0);
-                    document.getElementById('cart-badge').textContent = total;
-                    document.getElementById('cart-badge').style.display = total ? 'flex' : 'none';
-                }
-                function updateOrdersDot() {
-                    const active = orders.filter(o => ['Pending','Preparing'].includes(o.status));
-                    const dot = document.getElementById('orders-dot');
-                    dot.classList.toggle('has-orders', active.length > 0);
-                }
-
-                // Decorative stepper helper (visual only; derived from existing status)
-                function stepIndex(status) {
-                    switch (status) {
-                        case 'Pending':    return 0;
-                        case 'Preparing':  return 1;
-                        case 'Ready':      return 2;
-                        case 'Served':
-                        case 'Completed':  return 3;
-                        case 'Cancelled':  return -1;
-                        default:           return 0;
                     }
                 }
+            })();
 
-                function renderSidebar() {
-                    const sorted = [...CATEGORIES].sort((a,b) => a.displayOrder - b.displayOrder);
-                    document.getElementById('cat-buttons').innerHTML =
-                        sorted.map(c => `
-                            <button class="cat-btn"
-                                    onclick="scrollToCat('${c.id}', this)"
-                                    data-cat="${c.id}">
-                                <span class="cat-dot" style="background:${c.color || '#e47835'}"></span>
-                                ${c.name}
-                            </button>
-                        `).join('');
+            // ══════════════════════════════════════════════════════════════════
+            // DATA BOOTSTRAP
+            // ══════════════════════════════════════════════════════════════════
+            const CATEGORIES   = @Html.Raw(categoriesJson);
+            const MENU_ITEMS   = @Html.Raw(menuItemsJson);
+            const TABLE_NUMBER = "@Model.Table";
+
+            let cart   = JSON.parse(localStorage.getItem('bh_cart')   || '[]');
+            let orders = JSON.parse(localStorage.getItem('bh_orders') || '[]');
+
+            let currentItem       = null;
+            let currentQty        = 1;
+            let currentSelections = {};
+            let currentAddons     = new Set();
+            let currentOrderType  = 'Dine In';
+
+            // ── Post-order call-staff state (primary flow) ──
+            // Tracks the active staff-call session for the post-checkout modal.
+            let postOrderTimerInterval = null;   // setInterval handle for elapsed timer
+            let postOrderSeconds       = 0;      // Seconds elapsed since staff notified
+            let postOrderPolling       = null;   // setInterval handle for KDS polling
+            let postOrderNumber        = null;   // Order number for the current flow
+
+            // ── Secondary call-staff state (from My Orders panel) ──
+            let callStaffTimerInterval = null;
+            let callStaffSeconds       = 0;
+            let callStaffPolling       = null;
+            let callStaffOrderNumber   = null;
+
+            // ══════════════════════════════════════════════════════════════════
+            // UTILITY FUNCTIONS
+            // ══════════════════════════════════════════════════════════════════
+            function fmt(n) { return '₱' + parseFloat(n).toFixed(2); }
+            function genId() { return Math.random().toString(36).substr(2, 9).toUpperCase(); }
+            function saveCart() { localStorage.setItem('bh_cart', JSON.stringify(cart)); }
+            function saveOrders() { localStorage.setItem('bh_orders', JSON.stringify(orders)); }
+
+            function toast(msg) {
+                const el      = document.createElement('div');
+                el.className  = 'toast';
+                el.textContent = msg;
+                document.getElementById('toast-container').appendChild(el);
+                setTimeout(() => el.remove(), 2900);
+            }
+
+            function updateCartBadge() {
+                const total = cart.reduce((s, i) => s + i.qty, 0);
+                document.getElementById('cart-badge').textContent   = total;
+                document.getElementById('cart-badge').style.display = total ? 'flex' : 'none';
+            }
+
+            function updateOrdersDot() {
+                const active = orders.filter(o => ['Pending', 'Preparing'].includes(o.status));
+                document.getElementById('orders-dot').classList.toggle('has-orders', active.length > 0);
+            }
+
+            function stepIndex(status) {
+                switch (status) {
+                    case 'Pending':   return 0;
+                    case 'Preparing': return 1;
+                    case 'Ready':     return 2;
+                    case 'Served':
+                    case 'Completed': return 3;
+                    case 'Cancelled': return -1;
+                    default:          return 0;
                 }
+            }
 
-                function renderMenu(filter='') {
-                    const content = document.getElementById('menu-content');
-                    const sorted = [...CATEGORIES].sort((a,b) => a.displayOrder - b.displayOrder);
-                    let html = '';
-                    sorted.forEach(cat => {
-                        const items = MENU_ITEMS.filter(m => {
-                            const matchCat = m.categoryId === cat.id;
-                            const matchFilter = !filter || m.name.toLowerCase().includes(filter) || (m.description||'').toLowerCase().includes(filter);
-                            return matchCat && matchFilter;
-                        }).sort((a,b) => a.displayOrder - b.displayOrder);
-                        if (!items.length) return;
-                        html += `<section class="category-section" id="cat-${cat.id}" data-cat="${cat.id}">
-                            <div class="category-header">
-                                <h2>${cat.name}</h2>
-                                <span class="cat-count">${items.length} items</span>
-                            </div>
-                            <div class="items-grid">
-                                ${items.map(item => renderItemCard(item)).join('')}
-                            </div>
-                        </section>`;
-                    });
-                    if (!html) html = `<div style="text-align:center;padding:4rem;color:var(--text-muted)"><div style="font-size:2rem;margin-bottom:1rem">🔍</div>No items match your search</div>`;
-                    content.innerHTML = html;
-                }
+            // ══════════════════════════════════════════════════════════════════
+            // RENDER: SIDEBAR CATEGORY BAR
+            // ══════════════════════════════════════════════════════════════════
+            function renderSidebar() {
+                const sorted = [...CATEGORIES].sort((a, b) => a.displayOrder - b.displayOrder);
+                document.getElementById('cat-buttons').innerHTML =
+                    sorted.map(c => `
+                        <button class="cat-btn"
+                                onclick="scrollToCat('${c.id}', this)"
+                                data-cat="${c.id}">
+                            <span class="cat-dot" style="background:${c.color || '#e47835'}"></span>
+                            ${c.name}
+                        </button>
+                    `).join('');
+            }
 
-                function renderItemCard(item) {
-                    const imgHtml = item.imageBase64
-                        ? `<img src="data:${item.imageMimeType};base64,${item.imageBase64}" alt="${item.name}" loading="lazy" />`
-                        : `<span class="img-placeholder">☕</span>`;
-                    const actionBtn = item.isAvailable
-                        ? `<button class="btn-add" onclick="event.stopPropagation();openItemModal('${item.id}')" aria-label="Add ${item.name}">+</button>`
-                        : `<span class="unavail-badge">Unavailable</span>`;
-                    return `
-                        <div class="item-card${!item.isAvailable ? ' unavailable' : ''}" onclick="openItemModal('${item.id}')">
-                            <div class="item-img">${imgHtml}</div>
-                            <div class="item-body">
-                                <div class="item-name">${item.name}</div>
-                                <div class="item-desc">${item.description || ''}</div>
-                                <div class="item-footer">
-                                    <div>
-                                        <div class="item-price">${fmt(item.price)}</div>
-                                        ${item.preparationTime ? `<div class="item-prep">⏱ ~${item.preparationTime} min</div>` : ''}
-                                    </div>
-                                    ${actionBtn}
-                                </div>
-                            </div>
-                        </div>`;
-                }
+            // ══════════════════════════════════════════════════════════════════
+            // RENDER: MENU GRID
+            // ══════════════════════════════════════════════════════════════════
+            function renderMenu(filter = '') {
+                const content = document.getElementById('menu-content');
+                const sorted  = [...CATEGORIES].sort((a, b) => a.displayOrder - b.displayOrder);
+                let html = '';
 
-                function openItemModal(itemId) {
-                    currentItem = MENU_ITEMS.find(m => m.id === itemId);
-                    if (!currentItem) return;
-                    currentQty = 1;
-                    currentSelections = {};
-                    currentAddons = new Set();
+                sorted.forEach(cat => {
+                    const items = MENU_ITEMS.filter(m => {
+                        const matchCat    = m.categoryId === cat.id;
+                        const matchFilter = !filter
+                            || m.name.toLowerCase().includes(filter)
+                            || (m.description || '').toLowerCase().includes(filter);
+                        return matchCat && matchFilter;
+                    }).sort((a, b) => a.displayOrder - b.displayOrder);
 
-                    const imgDiv = document.getElementById('modal-img');
-                    if (currentItem.imageBase64) {
-                        imgDiv.innerHTML = `<img src="data:${currentItem.imageMimeType};base64,${currentItem.imageBase64}" alt="${currentItem.name}" />`;
-                    } else {
-                        imgDiv.innerHTML = `<span class="img-placeholder">☕</span>`;
-                    }
+                    if (!items.length) return;
 
-                    document.getElementById('modal-name').textContent = currentItem.name;
-                    document.getElementById('modal-desc').textContent = currentItem.description || '';
-                    document.getElementById('qty-val').textContent = 1;
-                    document.getElementById('item-notes').value = '';
-
-                    const custSection = document.getElementById('customizations-section');
-                    const sorted = [...(currentItem.customizations||[])].sort((a,b) => a.displayOrder - b.displayOrder);
-                    if (sorted.length) {
-                        sorted.forEach(c => {
-                            const defaults = c.options.filter(o => o.isDefault).map(o => o.id);
-                            if (c.type === 'Radio') {
-                                currentSelections[c.id] = defaults.length ? [defaults[0]] : [];
-                            } else {
-                                currentSelections[c.id] = defaults;
-                            }
-                        });
-                        custSection.innerHTML = sorted.map(c => `
-                            <div class="customization-group">
-                                <div class="section-label">
-                                    ${c.name}
-                                    <span class="${c.isRequired ? 'required-badge' : 'optional-badge'}">${c.isRequired ? 'Required' : 'Optional'}</span>
-                                </div>
-                                <div class="option-list">
-                                    ${c.options.map(o => {
-                                        const sel = (currentSelections[c.id]||[]).includes(o.id);
-                                        const inputType = c.type === 'Radio' ? 'radio' : 'checkbox';
-                                        const priceStr = o.priceModifier !== 0 ? `<span class="option-price positive">+${fmt(o.priceModifier)}</span>` : '';
-                                        return `<label class="option-item${sel ? ' selected' : ''}" id="opt-${o.id}">
-                                            <input type="${inputType}" name="cust-${c.id}" value="${o.id}" ${sel ? 'checked' : ''}
-                                                onchange="selectOption('${c.id}', '${o.id}', '${c.type}', this)" />
-                                            <span class="option-label">${o.label}</span>
-                                            ${priceStr}
-                                        </label>`;
-                                    }).join('')}
-                                </div>
-                            </div>`).join('');
-                    } else {
-                        custSection.innerHTML = '';
-                    }
-
-                    const addonSection = document.getElementById('addons-section');
-                    const activeAddons = (currentItem.addons||[]).filter(a => a.isActive);
-                    if (activeAddons.length) {
-                        addonSection.innerHTML = `
-                            <div class="section-label">Add-ons <span class="optional-badge">Optional</span></div>
-                            <div class="addon-grid">
-                                ${activeAddons.map(a => `
-                                    <label class="addon-item" id="addon-${a.id}">
-                                        <input type="checkbox" value="${a.id}" onchange="toggleAddon('${a.id}', this)" />
-                                        <span class="addon-name">${a.name}</span>
-                                        <span class="addon-price-tag">+${fmt(a.price)}</span>
-                                    </label>`).join('')}
-                            </div>`;
-                    } else {
-                        addonSection.innerHTML = '';
-                    }
-
-                    updateBtnPrice();
-                    document.getElementById('item-modal').classList.add('open');
-                }
-
-                function selectOption(custId, optId, type, input) {
-                    if (type === 'Radio') {
-                        currentSelections[custId] = [optId];
-                        document.querySelectorAll(`input[name="cust-${custId}"]`).forEach(el => {
-                            document.getElementById('opt-' + el.value)?.classList.toggle('selected', el.checked);
-                        });
-                    } else {
-                        if (!currentSelections[custId]) currentSelections[custId] = [];
-                        if (input.checked) { currentSelections[custId].push(optId); }
-                        else { currentSelections[custId] = currentSelections[custId].filter(id => id !== optId); }
-                        document.getElementById('opt-' + optId)?.classList.toggle('selected', input.checked);
-                    }
-                    updateBtnPrice();
-                }
-
-                function toggleAddon(addonId, input) {
-                    if (input.checked) currentAddons.add(addonId);
-                    else currentAddons.delete(addonId);
-                    document.getElementById('addon-' + addonId)?.classList.toggle('selected', input.checked);
-                    updateBtnPrice();
-                }
-
-                function getCustomizationPrice() {
-                    if (!currentItem) return 0;
-                    let extra = 0;
-                    Object.entries(currentSelections).forEach(([custId, selectedIds]) => {
-                        const cust = currentItem.customizations.find(c => c.id === custId);
-                        if (!cust) return;
-                        selectedIds.forEach(oid => {
-                            const opt = cust.options.find(o => o.id === oid);
-                            if (opt) extra += parseFloat(opt.priceModifier);
-                        });
-                    });
-                    [...currentAddons].forEach(addonId => {
-                        const addon = currentItem.addons.find(a => a.id === addonId);
-                        if (addon) extra += parseFloat(addon.price);
-                    });
-                    return extra;
-                }
-
-                function updateBtnPrice() {
-                    const base = parseFloat(currentItem?.price || 0);
-                    const extra = getCustomizationPrice();
-                    const total = (base + extra) * currentQty;
-                    document.getElementById('btn-price').textContent = fmt(total);
-                    document.getElementById('modal-price').textContent = fmt(base + extra);
-                }
-
-                function changeQty(delta) {
-                    currentQty = Math.max(1, currentQty + delta);
-                    document.getElementById('qty-val').textContent = currentQty;
-                    updateBtnPrice();
-                }
-
-                function closeItemModal() { document.getElementById('item-modal').classList.remove('open'); }
-
-                function addToCart() {
-                    if (!currentItem) return;
-                    const missing = (currentItem.customizations||[]).filter(c => {
-                        return c.isRequired && !(currentSelections[c.id]||[]).length;
-                    });
-                    if (missing.length) { toast('Please select: ' + missing[0].name); return; }
-
-                    const base = parseFloat(currentItem.price);
-                    const extra = getCustomizationPrice();
-                    const unitPrice = base + extra;
-
-                    const mods = [];
-                    Object.entries(currentSelections).forEach(([custId, selectedIds]) => {
-                        const cust = currentItem.customizations.find(c => c.id === custId);
-                        if (!cust || !selectedIds.length) return;
-                        const labels = selectedIds.map(oid => {
-                            const opt = cust.options.find(o => o.id === oid);
-                            return opt ? opt.label : '';
-                        });
-                        mods.push(cust.name + ': ' + labels.join(', '));
-                    });
-                    [...currentAddons].forEach(addonId => {
-                        const addon = currentItem.addons.find(a => a.id === addonId);
-                        if (addon) mods.push('+ ' + addon.name);
-                    });
-
-                    const notes = document.getElementById('item-notes').value.trim();
-                    if (notes) mods.push('Note: ' + notes);
-
-                    cart.push({
-                        cartId: genId(),
-                        itemId: currentItem.id,
-                        name: currentItem.name,
-                        qty: currentQty,
-                        unitPrice,
-                        mods,
-                        selections: JSON.parse(JSON.stringify(currentSelections)),
-                        addons: [...currentAddons],
-                        notes
-                    });
-                    saveCart();
-                    updateCartBadge();
-                    closeItemModal();
-                    toast(`${currentItem.name} added to cart!`);
-                }
-
-                function openCart() {
-                    renderCart();
-                    document.getElementById('cart-modal').classList.add('open');
-                }
-                function closeCart() { document.getElementById('cart-modal').classList.remove('open'); }
-
-                function renderCart() {
-                    const body = document.getElementById('cart-body');
-                    const footer = document.getElementById('cart-footer');
-                    if (!cart.length) {
-                        body.innerHTML = `<div class="cart-empty"><div class="empty-icon">🛒</div><div>Your cart is empty</div><div style="font-size:0.8rem;margin-top:4px">Add some items to get started</div></div>`;
-                        footer.innerHTML = '';
-                        return;
-                    }
-                    body.innerHTML = cart.map(ci => `
-                        <div class="cart-item">
-                            <div class="cart-item-info">
-                                <div class="cart-item-name">${ci.name}</div>
-                                ${ci.mods.length ? `<div class="cart-item-mods">${ci.mods.join(' · ')}</div>` : ''}
-                                <div class="cart-item-controls">
-                                    <button class="cart-qty-btn" onclick="cartChangeQty('${ci.cartId}', -1)" aria-label="Decrease">−</button>
-                                    <span class="cart-qty-val">${ci.qty}</span>
-                                    <button class="cart-qty-btn" onclick="cartChangeQty('${ci.cartId}', 1)" aria-label="Increase">+</button>
-                                    <button class="btn-remove" onclick="removeCartItem('${ci.cartId}')" title="Remove">✕</button>
-                                </div>
-                            </div>
-                            <div class="cart-item-price">${fmt(ci.unitPrice * ci.qty)}</div>
-                        </div>`).join('');
-
-                    const subtotal = cart.reduce((s,i) => s + i.unitPrice * i.qty, 0);
-                    footer.innerHTML = `
-                        <div class="cart-total-row">
-                            <span class="cart-total-label">Subtotal (${cart.reduce((s,i)=>s+i.qty,0)} items)</span>
-                            <span class="cart-total-val">${fmt(subtotal)}</span>
+                    html += `<section class="category-section" id="cat-${cat.id}" data-cat="${cat.id}">
+                        <div class="category-header">
+                            <h2>${cat.name}</h2>
+                            <span class="cat-count">${items.length} items</span>
                         </div>
-                        <button class="btn-checkout" onclick="openCheckout()">Proceed to Payment</button>`;
-                }
-
-                function cartChangeQty(cartId, delta) {
-                    const idx = cart.findIndex(c => c.cartId === cartId);
-                    if (idx === -1) return;
-                    cart[idx].qty = Math.max(1, cart[idx].qty + delta);
-                    saveCart(); updateCartBadge(); renderCart();
-                }
-                function removeCartItem(cartId) {
-                    cart = cart.filter(c => c.cartId !== cartId);
-                    saveCart(); updateCartBadge(); renderCart();
-                }
-
-                function openCheckout() {
-                    closeCart();
-                    const tableInput = document.getElementById('table-num');
-                    if (TABLE_NUMBER) tableInput.value = TABLE_NUMBER;
-
-                    const subtotal = cart.reduce((s,i) => s + i.unitPrice * i.qty, 0);
-                    document.getElementById('checkout-summary').innerHTML = `
-                        <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Order Summary</div>
-                        ${cart.map(ci => `<div class="checkout-row"><span>${ci.qty}× ${ci.name}</span><span>${fmt(ci.unitPrice * ci.qty)}</span></div>`).join('')}
-                        <div class="checkout-row total"><span>Total</span><span>${fmt(subtotal)}</span></div>`;
-                    document.getElementById('checkout-modal').classList.add('open');
-                }
-
-                function closeCheckout() { document.getElementById('checkout-modal').classList.remove('open'); }
-
-                function setOrderType(type, btn) {
-                    currentOrderType = type;
-                    document.querySelectorAll('.order-type-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    document.getElementById('table-group').style.display = type === 'Dine In' ? 'block' : 'none';
-                }
-
-                async function placeOrder() {
-                    const name = document.getElementById('customer-name').value.trim() || 'Guest';
-                    if (!cart.length) { toast('Your cart is empty'); return; }
-
-                    const table = TABLE_NUMBER || document.getElementById('table-num').value.trim();
-                    if (currentOrderType === 'Dine In' && !table) {
-                        toast('Please enter table number'); return;
-                    }
-
-                    const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
-                    const prepTime = Math.max(...cart.map(ci => {
-                        const mi = MENU_ITEMS.find(m => m.id === ci.itemId);
-                        return (mi?.preparationTime || 0) * ci.qty;
-                    }));
-
-                    const orderPayload = {
-                        customerName:     name,
-                        orderType:        currentOrderType === 'Dine In' ? 'dine-in' : 'take-out',
-                        tableNumber:      table,
-                        paymentMethod:    document.getElementById('payment-method').value,
-                        estimatedMinutes: Math.max(prepTime, 5),
-                        items: cart.map(ci => ({
-                            menuItemId:          ci.itemId,
-                            name:                ci.name,
-                            quantity:            ci.qty,
-                            unitPrice:           ci.unitPrice,
-                            customization:       ci.mods.filter(m => !m.startsWith('Note:')).join(' · '),
-                            specialInstructions: ci.notes || ''
-                        }))
-                    };
-
-                    const btn = document.getElementById('btn-place-order');
-                    btn.disabled = true;
-                    btn.textContent = 'Placing Order...';
-
-                    try {
-                        const res = await fetch('/api/orders/place', {
-                            method:  'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body:    JSON.stringify(orderPayload)
-                        });
-
-                        if (!res.ok) {
-                            const err = await res.text();
-                            console.error('Server error:', err);
-                            throw new Error(err);
-                        }
-
-                        const data = await res.json();
-
-                        const localOrder = {
-                            orderId:          data.orderNumber,
-                            customerName:     name,
-                            orderType:        currentOrderType,
-                            tableNumber:      table,
-                            paymentMethod:    orderPayload.paymentMethod,
-                            items:            JSON.parse(JSON.stringify(cart)),
-                            subtotal,
-                            status:           'Pending',
-                            createdAt:        new Date().toISOString(),
-                            estimatedMinutes: Math.max(prepTime, 5)
-                        };
-                        orders.unshift(localOrder);
-                        saveOrders();
-
-                        cart = [];
-                        saveCart();
-                        updateCartBadge();
-                        updateOrdersDot();
-                        closeCheckout();
-                // Show order success instead
-                document.getElementById('success-order-number').textContent = data.orderNumber;
-                document.getElementById('success-details').innerHTML =
-                    `${name} · ${currentOrderType}${table ? ' · Table ' + table : ''}<br>
-                     Est. ready in ~${Math.max(prepTime, 5)} min`;
-                document.getElementById('success-modal').classList.add('open');
-
-            } catch (err) {
-                        console.error('Order error:', err);
-                        toast('Failed to place order: ' + err.message);
-                    } finally {
-                        btn.disabled = false;
-                        btn.textContent = '✓ Place Order';
-                    }
-                }
-
-                function updateOrderStatus(orderId, status) {
-                    const o = orders.find(o => o.orderId === orderId);
-                    if (o && o.status !== 'Completed' && o.status !== 'Cancelled') {
-                        o.status = status;
-                        saveOrders();
-                        updateOrdersDot();
-                        toast(`Order ${orderId} is now ${status}! ${status === 'Ready' ? '🎉' : '☕'}`);
-                    }
-                }
-
-                function openOrderReceived(orderNumber) {
-                    callStaffOrderNumber = orderNumber;
-                    const o = orders[0];
-                    document.getElementById('callstaff-summary').innerHTML =
-                        `Order <strong>${orderNumber}</strong> received!<br>
-                         Total: <strong>₱${o?.subtotal?.toFixed(2) || '0.00'}</strong> · ${o?.paymentMethod || 'Cash'}`;
-                    document.getElementById('callstaff-idle').style.display = '';
-                    document.getElementById('callstaff-waiting').style.display = 'none';
-                    document.getElementById('btn-callstaff').disabled = false;
-                    document.getElementById('callstaff-modal').classList.add('open');
-                }
-
-                function closeSuccess() { document.getElementById('success-modal').classList.remove('open'); }
-
-                function openOrders() {
-                    renderOrders();
-                    document.getElementById('orders-modal').classList.add('open');
-                }
-                function closeOrders() { document.getElementById('orders-modal').classList.remove('open'); }
-
-                function renderOrders() {
-                    const body = document.getElementById('orders-body');
-                    if (!orders.length) {
-                        body.innerHTML = `<div class="no-orders"><div style="font-size:2.5rem;margin-bottom:0.75rem">📋</div><div>No orders yet</div><div style="font-size:0.8rem;margin-top:4px">Your orders will appear here</div></div>`;
-                        return;
-                    }
-                    body.innerHTML = orders.map(o => {
-                        const dt = new Date(o.createdAt);
-                        const timeStr = dt.toLocaleDateString('en-PH', { month:'short', day:'numeric' }) + ' ' + dt.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
-                        const canCancel = ['Pending'].includes(o.status);
-                        const si = stepIndex(o.status);
-                        const labelClass = (i) => si >= i ? 'active' : '';
-                        return `<div class="order-card">
-                            <div class="order-header">
-                                <div>
-                                    <div class="order-id">${o.orderId}</div>
-                                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px">${o.customerName} · ${o.orderType}${o.tableNumber ? ' · Table ' + o.tableNumber : ''}</div>
-                                </div>
-                                <span class="order-status-badge" data-status="${o.status}">
-                                    ${ ['Pending','Preparing'].includes(o.status) ? '<span class="live-dot"></span> ' : '' }
-                                    ${KDS_LABEL[o.status.toLowerCase()] || o.status}
-                                </span>
-                            </div>
-                            <div class="status-stepper" data-step="${si}" aria-hidden="true">
-                                <div class="step-dot"></div>
-                                <div class="step-dot"></div>
-                                <div class="step-dot"></div>
-                                <div class="step-dot"></div>
-                            </div>
-                            <div class="step-labels">
-                                <span class="${labelClass(0)}">Received</span>
-                                <span class="${labelClass(1)}">Preparing</span>
-                                <span class="${labelClass(2)}">Ready</span>
-                                <span class="${labelClass(3)}">Done</span>
-                            </div>
-                            <div class="order-items-list">
-                                ${o.items.map(ci => `
-                                    <div class="order-item-line">
-                                        <span>${ci.qty}× ${ci.name}</span>
-                                        <span>${fmt(ci.unitPrice * ci.qty)}</span>
-                                    </div>
-                                    ${ci.mods.length ? `<div class="order-item-mods-line">${ci.mods.join(' · ')}</div>` : ''}
-                                `).join('')}
-                            </div>
-                            <div class="order-footer">
-                                <div>
-                                    <div class="order-time">${timeStr}</div>
-                                    ${o.status === 'Pending' || o.status === 'Preparing' ? `<div style="font-size:0.72rem;color:var(--brand-700);margin-top:2px">⏱ Est. ~${o.estimatedMinutes} min</div>` : ''}
-                                </div>
-                                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-                                    ${canCancel ? `<button class="btn-cancel-order" onclick="cancelOrder('${o.orderId}')">Cancel</button>` : ''}
-                                    <span class="order-total">${fmt(o.subtotal)}</span>
-                                </div>
-                            </div>
-                            ${['Ready', 'Served'].includes(o.status) ? `
-                                <button class="btn-callstaff-trigger" onclick="openCallStaff('${o.orderId}')">
-                                    🔔 Call Staff for Payment
-                                </button>` : ''}
-                        </div>`;
-                    }).join('');
-                }
-
-                function cancelOrder(orderId) {
-                    const o = orders.find(o => o.orderId === orderId);
-                    if (o && o.status === 'Pending') {
-                        o.status = 'Cancelled';
-                        saveOrders();
-                        updateOrdersDot();
-                        renderOrders();
-                        toast('Order cancelled.');
-                    }
-                }
-
-                function scrollToCat(catId, btn) {
-                    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    document.getElementById('cat-' + catId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-                function scrollToAll(btn) {
-                    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-                function filterItems(val) { renderMenu(val.toLowerCase()); }
-
-                ['item-modal','cart-modal','checkout-modal','success-modal','orders-modal','callstaff-modal','leave-confirm'].forEach(id => {
-                    document.getElementById(id)?.addEventListener('click', function(e) {
-                        if (e.target === this) this.classList.remove('open');
-                    });
+                        <div class="items-grid">
+                            ${items.map(item => renderItemCard(item)).join('')}
+                        </div>
+                    </section>`;
                 });
 
-                function openCallStaff(orderNumber) {
-                    callStaffOrderNumber = orderNumber;
-                    const o = orders[0];
-                    if (o) {
-                        const payMethod = o.paymentMethod || 'Cash';
-                        const subtotal  = o.subtotal?.toFixed(2) || '0.00';
-                        document.getElementById('callstaff-summary').innerHTML =
-                            `<strong>Total: ₱${subtotal}</strong><br>Payment: ${payMethod}`;
+                if (!html) html = `<div style="text-align:center;padding:4rem;color:var(--text-muted)">
+                    <div style="font-size:2rem;margin-bottom:1rem">🔍</div>No items match your search</div>`;
+                content.innerHTML = html;
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // RENDER: ITEM CARD
+            // ══════════════════════════════════════════════════════════════════
+            function renderItemCard(item) {
+                const imgHtml = item.imageBase64
+                    ? `<img src="data:${item.imageMimeType};base64,${item.imageBase64}" alt="${item.name}" loading="lazy" />`
+                    : `<span class="img-placeholder">☕</span>`;
+
+                const actionBtn = item.isAvailable
+                    ? `<button class="btn-add" onclick="event.stopPropagation();openItemModal('${item.id}')" aria-label="Add ${item.name}">+</button>`
+                    : `<span class="unavail-badge">Unavailable</span>`;
+
+                return `
+                    <div class="item-card${!item.isAvailable ? ' unavailable' : ''}" onclick="openItemModal('${item.id}')">
+                        <div class="item-img">${imgHtml}</div>
+                        <div class="item-body">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-desc">${item.description || ''}</div>
+                            <div class="item-footer">
+                                <div>
+                                    <div class="item-price">${fmt(item.price)}</div>
+                                    ${item.preparationTime ? `<div class="item-prep">⏱ ~${item.preparationTime} min</div>` : ''}
+                                </div>
+                                ${actionBtn}
+                            </div>
+                        </div>
+                    </div>`;
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // ITEM DETAIL MODAL
+            // ══════════════════════════════════════════════════════════════════
+            function openItemModal(itemId) {
+                currentItem = MENU_ITEMS.find(m => m.id === itemId);
+                if (!currentItem) return;
+
+                currentQty        = 1;
+                currentSelections = {};
+                currentAddons     = new Set();
+
+                const imgDiv = document.getElementById('modal-img');
+                imgDiv.innerHTML = currentItem.imageBase64
+                    ? `<img src="data:${currentItem.imageMimeType};base64,${currentItem.imageBase64}" alt="${currentItem.name}" />`
+                    : `<span class="img-placeholder">☕</span>`;
+
+                document.getElementById('modal-name').textContent = currentItem.name;
+                document.getElementById('modal-desc').textContent = currentItem.description || '';
+                document.getElementById('qty-val').textContent    = 1;
+                document.getElementById('item-notes').value       = '';
+
+                const custSection = document.getElementById('customizations-section');
+                const sorted      = [...(currentItem.customizations || [])].sort((a, b) => a.displayOrder - b.displayOrder);
+
+                if (sorted.length) {
+                    sorted.forEach(c => {
+                        const defaults = c.options.filter(o => o.isDefault).map(o => o.id);
+                        currentSelections[c.id] = (c.type === 'Radio' && defaults.length)
+                            ? [defaults[0]]
+                            : defaults;
+                    });
+
+                    custSection.innerHTML = sorted.map(c => `
+                        <div class="customization-group">
+                            <div class="section-label">
+                                ${c.name}
+                                <span class="${c.isRequired ? 'required-badge' : 'optional-badge'}">${c.isRequired ? 'Required' : 'Optional'}</span>
+                            </div>
+                            <div class="option-list">
+                                ${c.options.map(o => {
+                                    const sel       = (currentSelections[c.id] || []).includes(o.id);
+                                    const inputType = c.type === 'Radio' ? 'radio' : 'checkbox';
+                                    const priceStr  = o.priceModifier !== 0
+                                        ? `<span class="option-price positive">+${fmt(o.priceModifier)}</span>` : '';
+                                    return `<label class="option-item${sel ? ' selected' : ''}" id="opt-${o.id}">
+                                        <input type="${inputType}" name="cust-${c.id}" value="${o.id}" ${sel ? 'checked' : ''}
+                                            onchange="selectOption('${c.id}', '${o.id}', '${c.type}', this)" />
+                                        <span class="option-label">${o.label}</span>
+                                        ${priceStr}
+                                    </label>`;
+                                }).join('')}
+                            </div>
+                        </div>`).join('');
+                } else {
+                    custSection.innerHTML = '';
+                }
+
+                const addonSection = document.getElementById('addons-section');
+                const activeAddons = (currentItem.addons || []).filter(a => a.isActive);
+
+                if (activeAddons.length) {
+                    addonSection.innerHTML = `
+                        <div class="section-label">Add-ons <span class="optional-badge">Optional</span></div>
+                        <div class="addon-grid">
+                            ${activeAddons.map(a => `
+                                <label class="addon-item" id="addon-${a.id}">
+                                    <input type="checkbox" value="${a.id}" onchange="toggleAddon('${a.id}', this)" />
+                                    <span class="addon-name">${a.name}</span>
+                                    <span class="addon-price-tag">+${fmt(a.price)}</span>
+                                </label>`).join('')}
+                        </div>`;
+                } else {
+                    addonSection.innerHTML = '';
+                }
+
+                updateBtnPrice();
+                document.getElementById('item-modal').classList.add('open');
+            }
+
+            function selectOption(custId, optId, type, input) {
+                if (type === 'Radio') {
+                    currentSelections[custId] = [optId];
+                    document.querySelectorAll(`input[name="cust-${custId}"]`).forEach(el => {
+                        document.getElementById('opt-' + el.value)?.classList.toggle('selected', el.checked);
+                    });
+                } else {
+                    if (!currentSelections[custId]) currentSelections[custId] = [];
+                    if (input.checked) currentSelections[custId].push(optId);
+                    else currentSelections[custId] = currentSelections[custId].filter(id => id !== optId);
+                    document.getElementById('opt-' + optId)?.classList.toggle('selected', input.checked);
+                }
+                updateBtnPrice();
+            }
+
+            function toggleAddon(addonId, input) {
+                if (input.checked) currentAddons.add(addonId);
+                else currentAddons.delete(addonId);
+                document.getElementById('addon-' + addonId)?.classList.toggle('selected', input.checked);
+                updateBtnPrice();
+            }
+
+            function getCustomizationPrice() {
+                if (!currentItem) return 0;
+                let extra = 0;
+                Object.entries(currentSelections).forEach(([custId, selectedIds]) => {
+                    const cust = currentItem.customizations.find(c => c.id === custId);
+                    if (!cust) return;
+                    selectedIds.forEach(oid => {
+                        const opt = cust.options.find(o => o.id === oid);
+                        if (opt) extra += parseFloat(opt.priceModifier);
+                    });
+                });
+                [...currentAddons].forEach(addonId => {
+                    const addon = currentItem.addons.find(a => a.id === addonId);
+                    if (addon) extra += parseFloat(addon.price);
+                });
+                return extra;
+            }
+
+            function updateBtnPrice() {
+                const base  = parseFloat(currentItem?.price || 0);
+                const extra = getCustomizationPrice();
+                const total = (base + extra) * currentQty;
+                document.getElementById('btn-price').textContent   = fmt(total);
+                document.getElementById('modal-price').textContent = fmt(base + extra);
+            }
+
+            function changeQty(delta) {
+                currentQty = Math.max(1, currentQty + delta);
+                document.getElementById('qty-val').textContent = currentQty;
+                updateBtnPrice();
+            }
+
+            function closeItemModal() {
+                document.getElementById('item-modal').classList.remove('open');
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // ADD TO CART
+            // ══════════════════════════════════════════════════════════════════
+            function addToCart() {
+                if (!currentItem) return;
+
+                const missing = (currentItem.customizations || []).filter(c =>
+                    c.isRequired && !(currentSelections[c.id] || []).length
+                );
+                if (missing.length) { toast('Please select: ' + missing[0].name); return; }
+
+                const base      = parseFloat(currentItem.price);
+                const extra     = getCustomizationPrice();
+                const unitPrice = base + extra;
+
+                const mods = [];
+                Object.entries(currentSelections).forEach(([custId, selectedIds]) => {
+                    const cust = currentItem.customizations.find(c => c.id === custId);
+                    if (!cust || !selectedIds.length) return;
+                    const labels = selectedIds.map(oid => cust.options.find(o => o.id === oid)?.label || '');
+                    mods.push(cust.name + ': ' + labels.join(', '));
+                });
+                [...currentAddons].forEach(addonId => {
+                    const addon = currentItem.addons.find(a => a.id === addonId);
+                    if (addon) mods.push('+ ' + addon.name);
+                });
+                const notes = document.getElementById('item-notes').value.trim();
+                if (notes) mods.push('Note: ' + notes);
+
+                cart.push({
+                    cartId:     genId(),
+                    itemId:     currentItem.id,
+                    name:       currentItem.name,
+                    qty:        currentQty,
+                    unitPrice,
+                    mods,
+                    selections: JSON.parse(JSON.stringify(currentSelections)),
+                    addons:     [...currentAddons],
+                    notes
+                });
+
+                saveCart();
+                updateCartBadge();
+                closeItemModal();
+                toast(`${currentItem.name} added to cart!`);
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // CART MODAL
+            // ══════════════════════════════════════════════════════════════════
+            function openCart() { renderCart(); document.getElementById('cart-modal').classList.add('open'); }
+            function closeCart() { document.getElementById('cart-modal').classList.remove('open'); }
+
+            function renderCart() {
+                const body   = document.getElementById('cart-body');
+                const footer = document.getElementById('cart-footer');
+
+                if (!cart.length) {
+                    body.innerHTML   = `<div class="cart-empty"><div class="empty-icon">🛒</div><div>Your cart is empty</div><div style="font-size:0.8rem;margin-top:4px">Add some items to get started</div></div>`;
+                    footer.innerHTML = '';
+                    return;
+                }
+
+                body.innerHTML = cart.map(ci => `
+                    <div class="cart-item">
+                        <div class="cart-item-info">
+                            <div class="cart-item-name">${ci.name}</div>
+                            ${ci.mods.length ? `<div class="cart-item-mods">${ci.mods.join(' · ')}</div>` : ''}
+                            <div class="cart-item-controls">
+                                <button class="cart-qty-btn" onclick="cartChangeQty('${ci.cartId}', -1)" aria-label="Decrease">−</button>
+                                <span class="cart-qty-val">${ci.qty}</span>
+                                <button class="cart-qty-btn" onclick="cartChangeQty('${ci.cartId}', 1)" aria-label="Increase">+</button>
+                                <button class="btn-remove" onclick="removeCartItem('${ci.cartId}')" title="Remove">✕</button>
+                            </div>
+                        </div>
+                        <div class="cart-item-price">${fmt(ci.unitPrice * ci.qty)}</div>
+                    </div>`).join('');
+
+                const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+                footer.innerHTML = `
+                    <div class="cart-total-row">
+                        <span class="cart-total-label">Subtotal (${cart.reduce((s, i) => s + i.qty, 0)} items)</span>
+                        <span class="cart-total-val">${fmt(subtotal)}</span>
+                    </div>
+                    <button class="btn-checkout" onclick="openCheckout()">Proceed to Checkout</button>`;
+            }
+
+            function cartChangeQty(cartId, delta) {
+                const idx = cart.findIndex(c => c.cartId === cartId);
+                if (idx === -1) return;
+                cart[idx].qty = Math.max(1, cart[idx].qty + delta);
+                saveCart(); updateCartBadge(); renderCart();
+            }
+
+            function removeCartItem(cartId) {
+                cart = cart.filter(c => c.cartId !== cartId);
+                saveCart(); updateCartBadge(); renderCart();
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // CHECKOUT MODAL
+            // ══════════════════════════════════════════════════════════════════
+            function openCheckout() {
+                closeCart();
+                if (TABLE_NUMBER) document.getElementById('table-num').value = TABLE_NUMBER;
+
+                const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+                document.getElementById('checkout-summary').innerHTML = `
+                    <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Order Summary</div>
+                    ${cart.map(ci => `<div class="checkout-row"><span>${ci.qty}× ${ci.name}</span><span>${fmt(ci.unitPrice * ci.qty)}</span></div>`).join('')}
+                    <div class="checkout-row total"><span>Total</span><span>${fmt(subtotal)}</span></div>`;
+                document.getElementById('checkout-modal').classList.add('open');
+            }
+
+            function closeCheckout() { document.getElementById('checkout-modal').classList.remove('open'); }
+
+            function setOrderType(type, btn) {
+                currentOrderType = type;
+                document.querySelectorAll('.order-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('table-group').style.display = type === 'Dine In' ? 'block' : 'none';
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // PLACE ORDER (async) — UPDATED FLOW
+            // ════════════════════════════════════════════════════════════════════
+            // NEW FLOW (replaces old flow entirely):
+            //
+            //   [Customer taps "Place Order"]
+            //         │
+            //         ▼
+            //   placeOrder() — POSTs to /api/orders/place
+            //         │  success
+            //         ▼
+            //   openPostOrderModal()
+            //     Shows Panel 1 (postorder-pending):
+            //       "Order placed! Call staff for payment"
+            //       [🔔 Call Staff for Payment] ← PRIMARY, no cancel
+            //       [Browse Menu (pay later)]   ← closes modal, lets them add more
+            //         │
+            //         │ customer taps "Call Staff for Payment"
+            //         ▼
+            //   doPostOrderCallStaff()
+            //     Switches to Panel 2 (postorder-waiting):
+            //       Timer counting up — no close button
+            //     Polls /api/kds/orders-all every 4 seconds
+            //         │
+            //         │ staff confirms payment / order = completed
+            //         ▼
+            //   showPostOrderDone()
+            //     Switches to Panel 3 (postorder-done):
+            //       "All done — enjoy!"
+            //       [🚪 Done — Free This Table] ← calls markTableAvailable()
+            //       [Back to Menu]              ← edge case: another round
+            //
+            // IMPORTANT: Panels 2 and 3 have NO close button.
+            //            Once staff is called, customer cannot dismiss the modal.
+            // ══════════════════════════════════════════════════════════════════
+            async function placeOrder() {
+                const name = document.getElementById('customer-name').value.trim() || 'Guest';
+                if (!cart.length) { toast('Your cart is empty'); return; }
+
+                const table = TABLE_NUMBER || document.getElementById('table-num').value.trim();
+                if (currentOrderType === 'Dine In' && !table) {
+                    toast('Please enter table number'); return;
+                }
+
+                const subtotal = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+                const prepTime = Math.max(...cart.map(ci => {
+                    const mi = MENU_ITEMS.find(m => m.id === ci.itemId);
+                    return (mi?.preparationTime || 0) * ci.qty;
+                }));
+
+                const orderPayload = {
+                    customerName:     name,
+                    orderType:        currentOrderType === 'Dine In' ? 'dine-in' : 'take-out',
+                    tableNumber:      table,
+                    paymentMethod:    document.getElementById('payment-method').value,
+                    estimatedMinutes: Math.max(prepTime, 5),
+                    items: cart.map(ci => ({
+                        menuItemId:          ci.itemId,
+                        name:                ci.name,
+                        quantity:            ci.qty,
+                        unitPrice:           ci.unitPrice,
+                        customization:       ci.mods.filter(m => !m.startsWith('Note:')).join(' · '),
+                        specialInstructions: ci.notes || ''
+                    }))
+                };
+
+                const btn       = document.getElementById('btn-place-order');
+                btn.disabled    = true;
+                btn.textContent = 'Placing Order...';
+
+                try {
+                    const res = await fetch('/api/orders/place', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify(orderPayload)
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.text();
+                        console.error('Server error:', err);
+                        throw new Error(err);
                     }
-                    document.getElementById('callstaff-idle').style.display    = '';
-                    document.getElementById('callstaff-waiting').style.display = 'none';
-                    document.getElementById('btn-callstaff').disabled = false;
-                    document.getElementById('callstaff-modal').classList.add('open');
+
+                    const data = await res.json();
+
+                    // Build local order record.
+                    const localOrder = {
+                        orderId:          data.orderNumber,
+                        customerName:     name,
+                        orderType:        currentOrderType,
+                        tableNumber:      table,
+                        paymentMethod:    orderPayload.paymentMethod,
+                        items:            JSON.parse(JSON.stringify(cart)),
+                        subtotal,
+                        status:           'Pending',
+                        createdAt:        new Date().toISOString(),
+                        estimatedMinutes: Math.max(prepTime, 5)
+                    };
+                    orders.unshift(localOrder);
+                    saveOrders();
+
+                    // Clear cart immediately after successful order submission.
+                    cart = [];
+                    saveCart();
+                    updateCartBadge();
+                    updateOrdersDot();
+                    closeCheckout();
+
+                    // Store order number for the post-order modal flow.
+                    postOrderNumber = data.orderNumber;
+
+                    // Open the post-order modal at Panel 1 (call staff prompt).
+                    openPostOrderModal(data.orderNumber, name, currentOrderType, table, Math.max(prepTime, 5));
+
+                } catch (err) {
+                    console.error('Order error:', err);
+                    toast('Failed to place order: ' + err.message);
+                } finally {
+                    btn.disabled    = false;
+                    btn.textContent = '✓ Place Order';
                 }
+            }
 
-                function closeCallStaff() {
-                    document.getElementById('callstaff-modal').classList.remove('open');
-                    clearInterval(callStaffTimerInterval);
-                    clearInterval(callStaffPolling);
-                    callStaffTimerInterval = null;
-                    callStaffPolling       = null;
-                    callStaffSeconds       = 0;
-                }
+            // ══════════════════════════════════════════════════════════════════
+            // POST-ORDER MODAL — Panel management
+            // ══════════════════════════════════════════════════════════════════
 
-                async function doCallStaff() {
-                    const btn = document.getElementById('btn-callstaff');
-                    btn.disabled = true;
+            // Opens the post-order modal at Panel 1 (pending/call-staff prompt).
+            // Called once right after placeOrder() succeeds.
+            function openPostOrderModal(orderNumber, name, orderType, table, estMins) {
+                // Reset all panels to baseline state.
+                document.getElementById('postorder-pending').style.display = '';
+                document.getElementById('postorder-waiting').style.display = 'none';
+                document.getElementById('postorder-done').style.display    = 'none';
 
-                    try {
-                        const res = await fetch('/api/notifications/call-staff', {
-                            method:  'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                orderNumber: callStaffOrderNumber,
-                                tableNumber: TABLE_NUMBER || '',
-                                message:     'Customer requests staff for payment'
-                            })
-                        });
+                // Reset the call-staff button in case it was disabled from a prior session.
+                const callBtn = document.getElementById('btn-postorder-callstaff');
+                if (callBtn) callBtn.disabled = false;
 
-                        if (!res.ok) throw new Error(await res.text());
+                // Populate order info fields.
+                document.getElementById('postorder-number').textContent = orderNumber;
+                document.getElementById('postorder-details').innerHTML  =
+                    `${name} · ${orderType}${table ? ' · Table ' + table : ''}<br>Est. ready in ~${estMins} min`;
 
-                        document.getElementById('callstaff-idle').style.display    = 'none';
-                        document.getElementById('callstaff-waiting').style.display = '';
+                document.getElementById('postorder-modal').classList.add('open');
+            }
 
-                        callStaffSeconds = 0;
-                        callStaffTimerInterval = setInterval(() => {
-                            callStaffSeconds++;
-                            const m = Math.floor(callStaffSeconds / 60);
-                            const s = callStaffSeconds % 60;
-                            document.getElementById('callstaff-timer').textContent =
-                                `${m}:${String(s).padStart(2,'0')}`;
-                        }, 1000);
+            // Closes the post-order modal from Panel 1 only (Browse Menu button).
+            // Panel 2 and 3 do NOT call this — they have no close button.
+            function closePostOrderModal() {
+                // Only allow closing from Panel 1 (pending). If staff was already
+                // called (waiting panel is visible), do nothing.
+                const waiting = document.getElementById('postorder-waiting');
+                const done    = document.getElementById('postorder-done');
+                if (waiting.style.display !== 'none' || done.style.display !== 'none') return;
+                document.getElementById('postorder-modal').classList.remove('open');
+            }
 
-                        callStaffPolling = setInterval(async () => {
-                            try {
-                                const r    = await fetch('/api/kds/orders-all');
-                                const list = await r.json();
-                                const match = list.find(o => o.orderNumber === callStaffOrderNumber);
-                                if (!match) {
-                                    clearInterval(callStaffPolling);
-                                    clearInterval(callStaffTimerInterval);
-                                    closeCallStaff();
-                                    advanceToSuccess();
-                                } else if (match.status !== 'pending') {
-                                    clearInterval(callStaffPolling);
-                                    clearInterval(callStaffTimerInterval);
-                                    if (match.status === 'paid') {
-                                        closeCallStaff();
-                                        advanceToSuccess();
-                                    } else {
-                                        showStaffOnWay();
-                                    }
-                                }
-                            } catch(e) { /* silent */ }
-                        }, 4000);
+            // Called after payment is confirmed and customer taps "Back to Menu"
+            // from Panel 3 (edge case — another order round).
+            function closePostOrderDone() {
+                // Tear down any remaining polling.
+                clearInterval(postOrderPolling);
+                clearInterval(postOrderTimerInterval);
+                postOrderPolling       = null;
+                postOrderTimerInterval = null;
+                postOrderSeconds       = 0;
+                document.getElementById('postorder-modal').classList.remove('open');
+            }
 
-                    } catch (err) {
-                        toast('Could not reach staff: ' + err.message);
-                        btn.disabled = false;
-                    }
-                }
+            // ══════════════════════════════════════════════════════════════════
+            // DO POST-ORDER CALL STAFF (async) — PRIMARY PAYMENT PATH
+            // Triggered when customer taps "Call Staff for Payment" in Panel 1.
+            //
+            // 1. Disables the button immediately (no double-tap).
+            // 2. POSTs to /api/notifications/call-staff.
+            // 3. On success → switches to Panel 2 (waiting + timer).
+            //    Panel 2 has NO close button — customer must wait for staff.
+            // 4. Polls /api/kds/orders-all every 4 seconds.
+            //    On completion/payment → showPostOrderDone() → Panel 3.
+            // 5. On API failure → re-enables button and shows error toast.
+            // ══════════════════════════════════════════════════════════════════
+            async function doPostOrderCallStaff() {
+                const btn    = document.getElementById('btn-postorder-callstaff');
+                btn.disabled = true;
+                btn.textContent = 'Notifying staff…';
 
-                function advanceToSuccess() {
-                    const o = orders[0];
-                    if (!o) return;
-                    document.getElementById('success-order-number').textContent = o.orderId;
-                    document.getElementById('success-details').innerHTML =
-                        `${o.customerName} · ${o.orderType}${o.tableNumber ? ' · Table ' + o.tableNumber : ''}<br>Payment confirmed by staff`;
-                    document.getElementById('success-modal').classList.add('open');
-                }
+                try {
+                    const res = await fetch('/api/notifications/call-staff', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            orderNumber: postOrderNumber,
+                            tableNumber: TABLE_NUMBER || '',
+                            message:     'Customer requests staff for payment'
+                        })
+                    });
 
-                function showStaffOnWay() {
-                    const waiting = document.getElementById('callstaff-waiting');
-                    if (waiting) {
-                        waiting.innerHTML = `
-                            <div class="success-icon">✅</div>
-                            <h2 class="success-title">Staff has been notified</h2>
-                            <p class="success-sub">Your order has been accepted. A staff member will be with you shortly.</p>
-                            <button class="btn-back-menu" style="margin-top:1rem" onclick="closeCallStaff()">Got it</button>
-                        `;
-                    }
+                    if (!res.ok) throw new Error(await res.text());
 
-                    callStaffPolling = setInterval(async () => {
+                    // ── Switch to Panel 2 (waiting — no close button) ──
+                    document.getElementById('postorder-pending').style.display = 'none';
+                    document.getElementById('postorder-waiting').style.display = '';
+
+                    // Start elapsed-time counter (cosmetic only).
+                    postOrderSeconds       = 0;
+                    postOrderTimerInterval = setInterval(() => {
+                        postOrderSeconds++;
+                        const m = Math.floor(postOrderSeconds / 60);
+                        const s = postOrderSeconds % 60;
+                        document.getElementById('postorder-timer').textContent =
+                            `${m}:${String(s).padStart(2, '0')}`;
+                    }, 1000);
+
+                    // ── Begin KDS polling every 4 seconds ──
+                    postOrderPolling = setInterval(async () => {
                         try {
                             const r    = await fetch('/api/kds/orders-all');
                             const list = await r.json();
-                            const match = list.find(o => o.orderNumber === callStaffOrderNumber);
-                            if (!match || match.status === 'completed') {
-                                clearInterval(callStaffPolling);
-                                clearInterval(callStaffTimerInterval);
-                                closeCallStaff();
-                                advanceToSuccess();
+                            const match = list.find(o => o.orderNumber === postOrderNumber);
+
+                            if (!match) {
+                                // Order removed from KDS (completed/paid off-system).
+                                clearInterval(postOrderPolling);
+                                clearInterval(postOrderTimerInterval);
+                                showPostOrderDone();
+                            } else if (['completed', 'paid', 'served'].includes(match.status)) {
+                                // Staff marked it done or paid.
+                                clearInterval(postOrderPolling);
+                                clearInterval(postOrderTimerInterval);
+                                updateOrderStatusLocal(postOrderNumber, 'Completed');
+                                showPostOrderDone();
                             } else if (match.status === 'cancelled') {
-                                clearInterval(callStaffPolling);
-                                clearInterval(callStaffTimerInterval);
-                                closeCallStaff();
-                                const o = orders.find(o => o.orderId === callStaffOrderNumber);
-                                if (o) { o.status = 'Cancelled'; saveOrders(); updateOrdersDot(); }
+                                clearInterval(postOrderPolling);
+                                clearInterval(postOrderTimerInterval);
+                                updateOrderStatusLocal(postOrderNumber, 'Cancelled');
+                                document.getElementById('postorder-modal').classList.remove('open');
                                 toast('Your order was cancelled by staff.');
                                 openOrders();
-                            } else if (['pending','preparing','ready'].includes(match.status)) {
+                            }
+                            // For pending/preparing/ready: keep waiting.
+                        } catch(e) { /* silent — keep polling on transient network errors */ }
+                    }, 4000);
+
+                } catch (err) {
+                    toast('Could not reach staff: ' + err.message);
+                    btn.disabled    = false;
+                    btn.textContent = '🔔 Call Staff for Payment';
+                }
+            }
+
+            // Switches the post-order modal to Panel 3 (done — payment confirmed).
+            // The ONLY exit from this panel is "Done — Free This Table" (markTableAvailable)
+            // or the edge-case "Back to Menu" button.
+            function showPostOrderDone() {
+                document.getElementById('postorder-waiting').style.display = 'none';
+                document.getElementById('postorder-done').style.display    = '';
+                document.getElementById('postorder-done-number').textContent = postOrderNumber || '';
+            }
+
+            // Updates a local order's status by orderId.
+            // Guards against overwriting terminal states.
+            function updateOrderStatusLocal(orderId, status) {
+                const o = orders.find(o => o.orderId === orderId);
+                if (o && o.status !== 'Completed' && o.status !== 'Cancelled') {
+                    o.status = status;
+                    saveOrders();
+                    updateOrdersDot();
+                }
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // MY ORDERS MODAL
+            // ══════════════════════════════════════════════════════════════════
+            function openOrders() { renderOrders(); document.getElementById('orders-modal').classList.add('open'); }
+            function closeOrders() { document.getElementById('orders-modal').classList.remove('open'); }
+
+            function renderOrders() {
+                const body = document.getElementById('orders-body');
+
+                if (!orders.length) {
+                    body.innerHTML = `<div class="no-orders"><div style="font-size:2.5rem;margin-bottom:0.75rem">📋</div><div>No orders yet</div><div style="font-size:0.8rem;margin-top:4px">Your orders will appear here</div></div>`;
+                    return;
+                }
+
+                body.innerHTML = orders.map(o => {
+                    const dt         = new Date(o.createdAt);
+                    const timeStr    = dt.toLocaleDateString('en-PH', { month:'short', day:'numeric' })
+                                     + ' ' + dt.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
+                    const canCancel  = o.status === 'Pending';
+                    const si         = stepIndex(o.status);
+                    const labelClass = (i) => si >= i ? 'active' : '';
+
+                    return `<div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <div class="order-id">${o.orderId}</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px">${o.customerName} · ${o.orderType}${o.tableNumber ? ' · Table ' + o.tableNumber : ''}</div>
+                            </div>
+                            <span class="order-status-badge" data-status="${o.status}">
+                                ${ ['Pending','Preparing'].includes(o.status) ? '<span class="live-dot"></span> ' : '' }
+                                ${KDS_LABEL[o.status.toLowerCase()] || o.status}
+                            </span>
+                        </div>
+                        <div class="status-stepper" data-step="${si}" aria-hidden="true">
+                            <div class="step-dot"></div>
+                            <div class="step-dot"></div>
+                            <div class="step-dot"></div>
+                            <div class="step-dot"></div>
+                        </div>
+                        <div class="order-items-list">
+                            ${o.items.map(ci => `
+                                <div class="order-item-line">
+                                    <span>${ci.qty}× ${ci.name}</span>
+                                    <span>${fmt(ci.unitPrice * ci.qty)}</span>
+                                </div>
+                                ${ci.mods.length ? `<div class="order-item-mods-line">${ci.mods.join(' · ')}</div>` : ''}
+                            `).join('')}
+                        </div>
+                        <div class="order-footer">
+                            <div>
+                                <div class="order-time">${timeStr}</div>
+                                ${['Pending','Preparing'].includes(o.status) ? `<div style="font-size:0.72rem;color:var(--brand-700);margin-top:2px">⏱ Est. ~${o.estimatedMinutes} min</div>` : ''}
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+                                ${canCancel ? `<button class="btn-cancel-order" onclick="cancelOrder('${o.orderId}')">Cancel</button>` : ''}
+                                <span class="order-total">${fmt(o.subtotal)}</span>
+                            </div>
+                        </div>
+                        // Already correct — covers both dine-in and takeout
+                        ${['Ready', 'Served'].includes(o.status) ? `
+                            <button class="btn-callstaff-trigger" onclick="openCallStaff('${o.orderId}')">
+                                🔔 Call Staff for Payment
+                            </button>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            function cancelOrder(orderId) {
+                const o = orders.find(o => o.orderId === orderId);
+                if (o && o.status === 'Pending') {
+                    o.status = 'Cancelled';
+                    saveOrders(); updateOrdersDot(); renderOrders();
+                    toast('Order cancelled.');
+                }
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // SECONDARY CALL STAFF — from My Orders panel
+            // Used for Ready/Served orders outside the primary checkout flow.
+            // This path still has a Cancel button (it's not the checkout gate).
+            // ══════════════════════════════════════════════════════════════════
+                        function openCallStaff(orderNumber) {
+                callStaffOrderNumber = orderNumber;
+                const o = orders.find(o => o.orderId === orderNumber);
+                if (o) {
+                    document.getElementById('callstaff-summary').innerHTML =
+                        `Order <strong>${orderNumber}</strong><br>
+                         Total: <strong>${fmt(o.subtotal)}</strong> · ${o.paymentMethod || 'Cash'}`;
+                }
+                document.getElementById('callstaff-idle').style.display    = '';
+                document.getElementById('callstaff-waiting').style.display = 'none';
+                document.getElementById('btn-callstaff').disabled          = false;
+                document.getElementById('callstaff-modal').classList.add('open');
+            }
+
+            function closeCallStaff() {
+                document.getElementById('callstaff-modal').classList.remove('open');
+                clearInterval(callStaffPolling);
+                callStaffPolling = null;
+            }
+
+            async function doCallStaff() {
+                const btn    = document.getElementById('btn-callstaff');
+                btn.disabled = true;
+
+                try {
+                    const res = await fetch('/api/notifications/call-staff', {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            orderNumber: callStaffOrderNumber,
+                            tableNumber: TABLE_NUMBER || '',
+                            message:     'Customer requests staff for payment'
+                        })
+                    });
+
+                    if (!res.ok) throw new Error(await res.text());
+
+                    document.getElementById('callstaff-idle').style.display    = 'none';
+                    document.getElementById('callstaff-waiting').style.display = '';
+
+                    callStaffPolling = setInterval(async () => {
+                        try {
+                            const r     = await fetch('/api/kds/orders-all');
+                            const list  = await r.json();
+                            const match = list.find(o => o.orderNumber === callStaffOrderNumber);
+
+                            if (!match || ['completed', 'paid', 'served'].includes(match.status)) {
                                 clearInterval(callStaffPolling);
-                                clearInterval(callStaffTimerInterval);
                                 closeCallStaff();
-                                advanceToSuccess();
+                                toast('Payment confirmed! Thank you. 🎉');
+                            } else if (match.status === 'cancelled') {
+                                clearInterval(callStaffPolling);
+                                closeCallStaff();
+                                updateOrderStatusLocal(callStaffOrderNumber, 'Cancelled');
+                                toast('Your order was cancelled by staff.');
+                                openOrders();
                             }
                         } catch(e) { /* keep polling */ }
                     }, 4000);
+
+                } catch (err) {
+                    toast('Could not reach staff: ' + err.message);
+                    btn.disabled = false;
                 }
+            }
 
-                function showOrderCancelled() {
-                    const o = orders.find(o => o.orderId === callStaffOrderNumber);
-                    if (o) { o.status = 'Cancelled'; saveOrders(); updateOrdersDot(); }
-                    toast('Your order was cancelled.');
-                    openOrders();
-                }
+            // ══════════════════════════════════════════════════════════════════
+            // KDS STATUS LABEL / COLOR LOOKUP MAPS
+            // ══════════════════════════════════════════════════════════════════
+            const KDS_LABEL = {
+                pending:   'Pending',
+                preparing: 'Preparing',
+                ready:     'Ready! 🎉',
+                served:    'Served',
+                completed: 'Completed',
+                cancelled: 'Cancelled'
+            };
+            const KDS_COLOR = {
+                pending:   '#e47835',
+                preparing: '#f59e0b',
+                ready:     '#22c55e',
+                served:    '#6b7280',
+                completed: '#6b7280',
+                cancelled: '#ef4444'
+            };
 
-                const KDS_LABEL = { pending:'Pending', preparing:'Preparing', ready:'Ready! 🎉', served:'Served', completed:'Completed', cancelled:'Cancelled' };
-                const KDS_COLOR = { pending:'#e47835', preparing:'#f59e0b', ready:'#22c55e', served:'#6b7280', completed:'#6b7280', cancelled:'#ef4444' };
-                let statusSyncInterval = null;
+            let statusSyncInterval = null;
 
-                async function syncOrderStatuses() {
-                    if (!orders.length) return;
-                    try {
-                        const res  = await fetch('/api/kds/orders-all');
-                        if (!res.ok) return;
-                        const kdsOrders = await res.json();
-                        let changed = false;
-                        orders.forEach(localOrder => {
-                            const kds = kdsOrders.find(k => k.orderNumber === localOrder.orderId);
-                            if (!kds) return;
-                            const newStatus = kds.status.charAt(0).toUpperCase() + kds.status.slice(1);
-                            if (localOrder.status === newStatus) return;
-                            localOrder.status = newStatus;
-                            changed = true;
-                            const msg = { Preparing:'☕ Your order is being prepared!', Ready:'🎉 Your order is ready!', Served:'✅ Order served. Enjoy!', Cancelled:'❌ Your order was cancelled.' }[newStatus];
-                            if (msg) toast(msg);
-                        });
-                        if (changed) {
-                            saveOrders();
-                            updateOrdersDot();
-                            if (document.getElementById('orders-modal').classList.contains('open')) renderOrders();
-                        }
-                    } catch(e) { /* silent */ }
-                }
+            // ══════════════════════════════════════════════════════════════════
+            // SYNC ORDER STATUSES (Background Polling — every 5 seconds)
+            // ══════════════════════════════════════════════════════════════════
+            async function syncOrderStatuses() {
+                if (!orders.length) return;
+                try {
+                    const res = await fetch('/api/kds/orders-all');
+                    if (!res.ok) return;
+                    const kdsOrders = await res.json();
+                    let changed = false;
 
-                // ── GET STARTED ──────────────────────────────────────────────
-                async function closeGetStarted() {
-                    const modal = document.getElementById('getstarted-modal');
-                    modal.classList.remove('open');
-                    modal.style.display = 'none';
+                    orders.forEach(localOrder => {
+                        // Match by orderNumber regardless of order type (dine-in OR take-out)
+                        const kds = kdsOrders.find(k =>
+                            k.orderNumber === localOrder.orderId &&
+                            (k.type === 'dine-in' || k.type === 'take-out')
+                        );
+                        if (!kds) return;
 
-                    try {
-                        const res = await fetch(`/api/tables/by-number/${TABLE_NUMBER}/status`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status: 'Occupied' })
-                        });
-                        if (!res.ok) {
-                            const errText = await res.text();
-                            console.error('Table Occupied update failed:', res.status, errText);
-                        } else {
-                            console.log(`Table ${TABLE_NUMBER} marked Occupied`);
-                        }
-                    } catch (err) {
-                        console.error('Table status update error:', err);
+                        const newStatus = kds.status.charAt(0).toUpperCase() + kds.status.slice(1);
+                        if (localOrder.status === newStatus) return;
+
+                        localOrder.status = newStatus;
+                        changed = true;
+
+                        const msg = {
+                            Preparing: localOrder.orderType === 'Takeout'
+                                ? '☕ Your takeout order is being prepared!'
+                                : '☕ Your order is being prepared!',
+                            Ready: localOrder.orderType === 'Takeout'
+                                ? '🛍️ Your takeout is ready for pickup!'
+                                : '🎉 Your order is ready!',
+                            Served: localOrder.orderType === 'Takeout'
+                                ? '✅ Takeout handed over. Enjoy!'
+                                : '✅ Order served. Enjoy!',
+                            Cancelled: '❌ Your order was cancelled.'
+                        }[newStatus];
+                        if (msg) toast(msg);
+                    });
+
+                    if (changed) {
+                        saveOrders();
+                        updateOrdersDot();
+                        if (document.getElementById('orders-modal').classList.contains('open')) renderOrders();
                     }
+                } catch(e) { /* silent */ }
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // NAVIGATION & SEARCH
+            // ══════════════════════════════════════════════════════════════════
+            function scrollToCat(catId, btn) {
+                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('cat-' + catId)?.scrollIntoView({ behavior:'smooth', block:'start' });
+            }
+            function scrollToAll(btn) {
+                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            function filterItems(val) { renderMenu(val.toLowerCase()); }
+
+            // Backdrop click closes modals — EXCEPT the post-order modal panels 2 and 3.
+            ['item-modal','cart-modal','checkout-modal','orders-modal','callstaff-modal','leave-confirm'].forEach(id => {
+                document.getElementById(id)?.addEventListener('click', function(e) {
+                    if (e.target === this) this.classList.remove('open');
+                });
+            });
+
+            // Post-order modal: only allow backdrop close from Panel 1.
+            document.getElementById('postorder-modal')?.addEventListener('click', function(e) {
+                if (e.target !== this) return;
+                const waiting = document.getElementById('postorder-waiting');
+                const done    = document.getElementById('postorder-done');
+                // If we're on Panel 2 or 3, block the close.
+                if (waiting.style.display !== 'none' || done.style.display !== 'none') return;
+                this.classList.remove('open');
+            });
+
+            // ══════════════════════════════════════════════════════════════════
+            // GET STARTED (Welcome Onboarding)
+            // ══════════════════════════════════════════════════════════════════
+            async function closeGetStarted() {
+                const modal = document.getElementById('getstarted-modal');
+                modal.classList.remove('open');
+                modal.style.display = 'none';
+                try {
+                    const res = await fetch(`/api/tables/by-number/${TABLE_NUMBER}/status`, {
+                        method:  'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({ status: 'Occupied' })
+                    });
+                    if (!res.ok) console.error('Table Occupied update failed:', res.status, await res.text());
+                    else console.log(`Table ${TABLE_NUMBER} marked Occupied`);
+                } catch (err) {
+                    console.error('Table status update error:', err);
+                }
+            }
+
+            function confirmLeave() {
+                document.getElementById('leave-confirm').classList.add('open');
+            }
+
+            // ══════════════════════════════════════════════════════════════════
+            // MARK TABLE AVAILABLE (End Session)
+            // Called from:
+            //   (a) postorder-done Panel 3 — "Done — Free This Table" button
+            //   (b) leave-confirm bottom sheet — "Yes, free the table"
+            // ══════════════════════════════════════════════════════════════════
+            async function markTableAvailable() {
+                try {
+                    const res = await fetch(`/api/tables/by-number/${TABLE_NUMBER}/status`, {
+                        method:  'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body:    JSON.stringify({ status: 'Available' })
+                    });
+                    if (!res.ok) console.error('Table Available update failed:', res.status, await res.text());
+                    else console.log(`Table ${TABLE_NUMBER} marked Available`);
+                } catch (err) {
+                    console.warn('Table status update failed:', err);
                 }
 
-                // ✅ FIX: This was missing — Done button calls confirmLeave() but it didn't exist
-                function confirmLeave() {
-                    document.getElementById('leave-confirm').classList.add('open');
-                }
+                // Wipe all client-side session data.
+                localStorage.removeItem('bh_cart');
+                localStorage.removeItem('bh_orders');
+                sessionStorage.removeItem('qr_session_table_' + TABLE_NUMBER);
+                window.location.replace('/session-ended');
+            }
 
-                async function markTableAvailable() {
-                    try {
-                        const res = await fetch(`/api/tables/by-number/${TABLE_NUMBER}/status`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status: 'Available' })
-                        });
-                        if (!res.ok) {
-                            const errText = await res.text();
-                            console.error('Table Available update failed:', res.status, errText);
-                        } else {
-                            console.log(`Table ${TABLE_NUMBER} marked Available`);
-                        }
-                    } catch (err) {
-                        console.warn('Table status update failed:', err);
-                    }
+            // ══════════════════════════════════════════════════════════════════
+            // INITIALIZATION
+            // ══════════════════════════════════════════════════════════════════
+            renderSidebar();
+            renderMenu();
+            updateCartBadge();
+            updateOrdersDot();
+            syncOrderStatuses();
+            statusSyncInterval = setInterval(syncOrderStatuses, 5000);
 
-                    localStorage.removeItem('bh_cart');
-                    localStorage.removeItem('bh_orders');
-                    sessionStorage.removeItem('qr_session_table_' + TABLE_NUMBER);
-                    window.location.replace('/session-ended');
-                }
-
-                // ── INIT ──
-                renderSidebar();
-                renderMenu();
-                updateCartBadge();
-                updateOrdersDot();
-                syncOrderStatuses();
-                statusSyncInterval = setInterval(syncOrderStatuses, 5000);
-                if (!cart.reduce((s,i)=>s+i.qty,0)) document.getElementById('cart-badge').style.display = 'none';
+            if (!cart.reduce((s, i) => s + i.qty, 0)) {
+                document.getElementById('cart-badge').style.display = 'none';
+            }
     </script>
 </body>
 </html>

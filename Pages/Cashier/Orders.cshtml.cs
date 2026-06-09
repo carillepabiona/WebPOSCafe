@@ -17,7 +17,7 @@ namespace WebPOSCafe.Pages.Cashier
         public string SelectedFilter { get; set; } = "all";
 
         [BindProperty(SupportsGet = true)]
-        public string SelectedTab { get; set; } = "dine-in";
+        public string SelectedTab { get; set; } = "all";  // was "dine-in"
 
         // ── View Models ────────────────────────────────────────────────────
         public class OrderItemView
@@ -122,10 +122,10 @@ namespace WebPOSCafe.Pages.Cashier
 
             filtered = SelectedTab switch
             {
-                // AFTER
                 "dine-in" => filtered.Where(o => o.Type == "dine-in" && o.Status != "paid" && o.Status != "served"),
                 "take-out" => filtered.Where(o => o.Type == "take-out" && o.Status != "paid" && o.Status != "served"),
                 "completed" => filtered.Where(o => o.Status == "paid" || o.Status == "served"),
+                "all" => filtered.Where(o => o.Status != "paid" && o.Status != "served"),  // ← add this
                 _ => filtered
             };
 
