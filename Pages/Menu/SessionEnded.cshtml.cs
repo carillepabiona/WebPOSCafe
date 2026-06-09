@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace WebPOSCafe.Pages.Menu
 {
-    public class GetStartedDineInModel : PageModel
+    public class SessionEndedModel : PageModel
     {
         public void OnGet()
         {

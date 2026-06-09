@@ -305,13 +305,6 @@
                 </div>
             }
 
-            <div class="panel-section">
-                <h3>Payment Status</h3>
-                <div class="payment-status-box @(order.Status == "paid" ? "paid" : "pending")" id="panel-payment-@order.Id">
-                    <span class="status-icon">@(order.Status == "paid" ? "✓" : "⏳")</span>
-                    <span>@(order.Status == "paid" ? "Paid" : "Pending")</span>
-                </div>
-            </div>
         </div>
 
         <div class="panel-actions" id="panel-actions-@order.Id">
@@ -676,7 +669,7 @@
             <form method="post" action="?handler=UpdateStatus">
                 ${hiddens}
                 <input type="hidden" name="newStatus" value="paid" />
-                <button type="submit" class="action-btn btn-paid">💳 Mark Paid</button>
+                <button type="submit" class="action-btn btn-paid"> Served </button>
             </form>`;
         }
 

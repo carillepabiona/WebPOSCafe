@@ -95,14 +95,14 @@
     </div>
 
     <script>
-            // ── CONFIG ──────────────────────────────────────────────────────────────
+            // ── CONFIG ─────────────────────────────────────────────────────────────
             const POLL_INTERVAL = 5000;
             let soundEnabled  = true;
             let knownOrderIds = new Set();
             let bumpedOrders  = [];
             let checkedItems  = {};   // orderId -> Set of item indices
 
-            // ── CLOCK ───────────────────────────────────────────────────────────────
+            // ── CLOCK ──────────────────────────────────────────────────────────────
             function updateClock() {
                 const now = new Date();
                 document.getElementById('clock').textContent =
@@ -111,7 +111,7 @@
             setInterval(updateClock, 1000);
             updateClock();
 
-            // ── SOUND ───────────────────────────────────────────────────────────────
+            // ── SOUND ──────────────────────────────────────────────────────────────
             function toggleSound() {
                 soundEnabled = !soundEnabled;
                 document.getElementById('sound-btn').textContent =
@@ -138,7 +138,7 @@
                 } catch(e) {}
             }
 
-            // ── RENDER CARD ──────────────────────────────────────────────────────────
+            // ── RENDER CARD ────────────────────────────────────────────────────────
             function renderCard(order) {
                 const checked = checkedItems[order.id] || new Set();
 
@@ -151,20 +151,20 @@
                                onchange="toggleItem(${order.id}, ${idx}, this)" />
                         <div class="kds-item-info">
                             <div class="kds-item-name">${item.quantity}× ${item.name}</div>
-                            ${item.customization       ? `<div class="kds-item-mods">${item.customization}</div>` : ''}
+                            ${item.customization       ? `<div class="kds-item-mods">${item.customization}</div>`       : ''}
                             ${item.specialInstructions ? `<div class="kds-item-note">📝 ${item.specialInstructions}</div>` : ''}
                         </div>
                     </div>`;
                 }).join('');
 
-                // ── ACTION BUTTON per status ──────────────────────────────────────────
+                // ── Action button per status ───────────────────────────────────────
                 let actionBtn = '';
                 if (order.status === 'pending') {
                     actionBtn = `<button class="kds-btn kds-btn-start" onclick="updateStatus(${order.id}, 'preparing')">▶ Start</button>`;
                 } else if (order.status === 'preparing') {
                     actionBtn = `<button class="kds-btn kds-btn-ready" onclick="updateStatus(${order.id}, 'ready')">✓ Ready</button>`;
                 } else if (order.status === 'ready') {
-                    // ── THIS IS THE FIX: "Done" now calls markServed() ────────────────
+                    // ✅ calls markServed() which sends status "served" — matches the controller's allowed transitions
                     actionBtn = `<button class="kds-btn kds-btn-done" onclick="markServed(${order.id})">✔ Done — Served</button>`;
                 }
 
@@ -188,7 +188,7 @@
                 </div>`;
             }
 
-            // ── RENDER ALL COLUMNS ────────────────────────────────────────────────────
+            // ── RENDER ALL COLUMNS ─────────────────────────────────────────────────
             function renderAll(orders) {
                 const pending   = orders.filter(o => o.status === 'pending');
                 const preparing = orders.filter(o => o.status === 'preparing');
@@ -211,17 +211,19 @@
                     ready.length     ? ready.map(renderCard).join('')     : empty();
             }
 
-            // ── STATE ─────────────────────────────────────────────────────────────────
+            // ── STATE ──────────────────────────────────────────────────────────────
             let currentOrders = [];
 
-            // ── FETCH ORDERS FROM SERVER ──────────────────────────────────────────────
+            // ── FETCH ORDERS FROM SERVER ───────────────────────────────────────────
+            // Polls /api/kds/orders every 5 seconds.
+            // Only shows pending/preparing/ready — "served" orders disappear automatically.
             async function fetchOrders() {
                 try {
                     const res = await fetch('/api/kds/orders');
                     if (!res.ok) return;
                     const data = await res.json();
 
-                    // Chime on genuinely new pending orders
+                    // Chime only on genuinely new pending orders
                     const newIds = data.filter(o => o.status === 'pending').map(o => o.id);
                     const hasNew = newIds.some(id => !knownOrderIds.has(id));
                     if (hasNew && knownOrderIds.size > 0) playChime();
@@ -234,7 +236,7 @@
                 }
             }
 
-            // ── UPDATE STATUS (pending → preparing → ready) ───────────────────────────
+            // ── UPDATE STATUS (pending → preparing → ready) ────────────────────────
             async function updateStatus(orderId, newStatus) {
                 try {
                     await fetch('/api/kds/status', {
@@ -248,9 +250,10 @@
                 }
             }
 
-            // ── MARK SERVED (ready → served) ──────────────────────────────────────────
-            // Called by the "✔ Done — Served" button on ready cards.
-            // Sends status "served" to the server, then animates the card out.
+            // ── MARK SERVED (ready → served) ───────────────────────────────────────
+            // ✅ Sends "served" to the server — matches allowed transitions in controller.
+            // The cashier page's syncOrderStatuses() will detect "served" and move the
+            // card to the Completed tab automatically.
             async function markServed(orderId) {
                 const order = currentOrders.find(o => o.id === orderId);
                 if (!order) return;
@@ -259,13 +262,13 @@
                     await fetch('/api/kds/status', {
                         method:  'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body:    JSON.stringify({ orderId, newStatus: 'served' })
+                        body:    JSON.stringify({ orderId, newStatus: 'served' })  // ✅ "served"
                     });
                 } catch(e) {
                     console.error('Mark served failed:', e);
                 }
 
-                // Add to recall bar (last 5)
+                // Add to recall bar (keep last 5)
                 bumpedOrders.unshift(order);
                 if (bumpedOrders.length > 5) bumpedOrders.pop();
 
@@ -291,14 +294,11 @@
                 }
             }
 
-            // ── BUMP ORDER (force-remove from KDS without marking served) ────────────
-            // Use this to dismiss an order from view without changing its status.
-            // The next poll will bring it back if it's still active on the server.
+            // ── BUMP ORDER (dismiss from KDS view without changing server status) ──
             async function bumpOrder(orderId) {
                 const order = currentOrders.find(o => o.id === orderId);
                 if (!order) return;
 
-                // Add to recall bar
                 bumpedOrders.unshift(order);
                 if (bumpedOrders.length > 5) bumpedOrders.pop();
 
@@ -308,7 +308,6 @@
                         <span>${o.tableNumber ? 'T-' + o.tableNumber : 'Takeout'}</span>
                     </div>`).join('');
 
-                // Animate card out locally only
                 const card = document.getElementById(`card-${orderId}`);
                 if (card) {
                     card.style.transition = 'opacity 0.2s, transform 0.2s';
@@ -324,7 +323,7 @@
                 }
             }
 
-            // ── RECALL ORDER ──────────────────────────────────────────────────────────
+            // ── RECALL ORDER ───────────────────────────────────────────────────────
             function recallOrder(orderId) {
                 const order = bumpedOrders.find(o => o.id === orderId);
                 if (!order) return;
@@ -338,7 +337,7 @@
                     </div>`).join('');
             }
 
-            // ── ITEM CHECKBOX ─────────────────────────────────────────────────────────
+            // ── ITEM CHECKBOX ──────────────────────────────────────────────────────
             function toggleItem(orderId, itemIdx, checkbox) {
                 if (!checkedItems[orderId]) checkedItems[orderId] = new Set();
                 if (checkbox.checked) checkedItems[orderId].add(itemIdx);
@@ -348,7 +347,7 @@
                 if (row) row.classList.toggle('done', checkbox.checked);
             }
 
-            // ── INIT ──────────────────────────────────────────────────────────────────
+            // ── INIT ───────────────────────────────────────────────────────────────
             fetchOrders();
             setInterval(fetchOrders, POLL_INTERVAL);
     </script>

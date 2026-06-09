@@ -19,5 +19,8 @@ namespace WebPOSCafe.Models
         public string Status { get; set; } = "Available";
 
         public DateTime? CreatedAt { get; set; } = DateTime.Now;
+
+        // In your Table entity / DB
+        public string? QRToken { get; set; }   // ← must exist
     }
 }

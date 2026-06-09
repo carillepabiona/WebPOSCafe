@@ -94,72 +94,298 @@ body {
     gap: .65rem;
 }
 
-.btn-orders {
+/* =============================================
+   Verso Cafe — Nav Component Styles
+   Requires: Tabler Icons webfont
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+   ============================================= */
+
+/* ----- Layout ----- */
+
+.nav {
     display: flex;
     align-items: center;
-    gap: .45rem;
-    padding: .5rem 1rem;
-    border: 1.5px solid var(--border-strong);
-    border-radius: 10px;
-    background: 40px;
-    color: var(--text);
-    font-size: .88rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all .18s;
-    position: relative;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 20px;
+    background: #ffffff;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-    .btn-orders:hover {
-        background: var(--cream);
-        border-color: var(--orange);
+/* ----- Brand ----- */
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a1a1a;
+    text-decoration: none;
+    letter-spacing: -0.01em;
+}
+
+    .nav-brand:hover {
+        opacity: 0.8;
     }
 
-.orders-dot {
+.logo-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--border-strong);
-    transition: background .3s;
+    background: #1D9E75;
+    display: inline-block;
     flex-shrink: 0;
 }
 
-    .orders-dot.has-orders {
-        background: var(--orange);
-    }
+/* ----- Actions group ----- */
 
-.btn-cart {
+.nav-actions {
     display: flex;
     align-items: center;
-    gap: .45rem;
-    padding: .5rem 1.1rem;
-    background: var(--orange);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius-md);
-    font-size: .88rem;
-    font-weight: 600;
+    gap: 6px;
+}
+
+/* ----- Table pill (non-interactive) ----- */
+
+.pill-table {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: #f5f5f3;
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
+    font-size: 13px;
+    color: #666;
+    white-space: nowrap;
+    user-select: none;
+}
+
+    .pill-table i {
+        font-size: 15px;
+        color: #999;
+    }
+
+    .pill-table .t-num {
+        font-weight: 500;
+        font-size: 13px;
+        color: #1a1a1a;
+    }
+
+/* ----- Base nav button ----- */
+
+.btn-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 0.5px solid rgba(0, 0, 0, 0.18);
+    background: transparent;
+    font-size: 13px;
+    font-weight: 400;
+    color: #1a1a1a;
     cursor: pointer;
-    transition: background .18s;
+    white-space: nowrap;
+    transition: background 0.1s ease, border-color 0.1s ease, transform 0.08s ease;
+    line-height: 1;
+}
+
+    .btn-nav i {
+        font-size: 16px;
+        color: #666;
+    }
+
+    .btn-nav:hover {
+        background: #f5f5f3;
+        border-color: rgba(0, 0, 0, 0.25);
+    }
+
+    .btn-nav:active {
+        transform: scale(0.97);
+    }
+
+    .btn-nav:focus-visible {
+        outline: 2px solid #1D9E75;
+        outline-offset: 2px;
+    }
+
+/* ----- Orders button — secondary ----- */
+
+.btn-orders {
     position: relative;
 }
 
-    .btn-cart:hover {
-        background: var(--orange-dark);
+.orders-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #1D9E75;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Hidden by default; add .has-orders to .btn-orders to show */
+.btn-orders .orders-dot {
+    display: none;
+}
+
+.btn-orders.has-orders .orders-dot {
+    display: inline-block;
+}
+
+/* ----- Done button — muted / exit ----- */
+
+.btn-done {
+    color: #888;
+    border-color: rgba(0, 0, 0, 0.12);
+}
+
+    .btn-done i {
+        color: #aaa;
     }
 
+    .btn-done:hover {
+        background: #faf5f5;
+        border-color: rgba(210, 60, 60, 0.2);
+        color: #a33;
+    }
+
+        .btn-done:hover i {
+            color: #c44;
+        }
+
+/* ----- Cart button — primary CTA ----- */
+
+.btn-cart {
+    background: #e47835;
+    border-color: #e47835;
+    color: #085041;
+}
+
+    .btn-cart i {
+        font-size: 16px;
+        color: #0F6E56;
+    }
+
+    .btn-cart:hover {
+        background: #9FE1CB;
+        border-color: #1D9E75;
+    }
+
+/* ----- Cart badge ----- */
+
 .cart-badge {
-    display: none;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: #fff;
-    color: var(--orange-dark);
-    font-size: .7rem;
-    font-weight: 700;
     min-width: 18px;
     height: 18px;
-    padding: 0 4px;
-    border-radius: 999px;
+    padding: 0 5px;
+    border-radius: 20px;
+    background: #1D9E75;
+    color: #04342C;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+    .cart-badge[data-count="0"] {
+        display: none;
+    }
+
+/* ----- Dark mode ----- */
+
+@media (prefers-color-scheme: dark) {
+    .nav {
+        background: #1a1a1a;
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .nav-brand {
+        color: #f0f0f0;
+    }
+
+    .pill-table {
+        background: #2a2a2a;
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #aaa;
+    }
+
+        .pill-table .t-num {
+            color: #f0f0f0;
+        }
+
+    .btn-nav {
+        color: #f0f0f0;
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+        .btn-nav i {
+            color: #999;
+        }
+
+        .btn-nav:hover {
+            background: #2a2a2a;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+
+    .btn-done {
+        color: #777;
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+        .btn-done i {
+            color: #555;
+        }
+
+        .btn-done:hover {
+            background: #2a1a1a;
+            color: #e06060;
+        }
+
+            .btn-done:hover i {
+                color: #e06060;
+            }
+
+    .btn-cart {
+        background: #0a2e22;
+        border-color: #0F6E56;
+        color: #9FE1CB;
+    }
+
+        .btn-cart i {
+            color: #5DCAA5;
+        }
+
+        .btn-cart:hover {
+            background: #0F3D2D;
+            border-color: #1D9E75;
+        }
+}
+
+/* ----- Responsive: collapse labels on small screens ----- */
+
+@media (max-width: 600px) {
+    .nav {
+        padding: 8px 12px;
+    }
+
+    .btn-nav span:not(.orders-dot):not(.cart-badge) {
+        display: none;
+    }
+
+    .btn-nav {
+        padding: 7px 9px;
+    }
+
+    .pill-table {
+        padding: 5px 9px;
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -935,6 +1161,7 @@ body {
     gap: .4rem;
     margin-top: .5rem;
 }
+
 
 .cart-qty-btn {
     width: 26px;
@@ -1912,5 +2139,237 @@ body {
     .btn-getstarted {
         font-size: 0.9rem;
         padding: 13px;
+    }
+}
+
+/* =============================================
+   Verso Cafe — Leave Confirmation Bottom Sheet
+   Requires: Tabler Icons webfont
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+   ============================================= */
+
+/* ----- Overlay (backdrop) ----- */
+
+.leave-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: flex-end;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+}
+
+    .leave-confirm-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+    }
+
+/* ----- Bottom sheet ----- */
+
+.leave-confirm-sheet {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 20px 20px 0 0;
+    padding: 0 24px 40px;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.leave-confirm-overlay.open .leave-confirm-sheet {
+    transform: translateY(0);
+}
+
+/* ----- Drag handle ----- */
+
+.leave-confirm-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.12);
+    margin: 12px auto 24px;
+}
+
+/* ----- Icon ----- */
+
+.leave-confirm-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: #f5f5f3;
+    border: 0.5px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+}
+
+    .leave-confirm-icon i {
+        font-size: 26px;
+        color: #555;
+    }
+
+/* ----- Text ----- */
+
+.leave-confirm-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #1a1a1a;
+    text-align: center;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+}
+
+.leave-confirm-sub {
+    font-size: 14px;
+    color: #888;
+    text-align: center;
+    line-height: 1.55;
+    margin: 0 0 28px;
+}
+
+/* ----- Actions ----- */
+
+.leave-confirm-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Primary — free the table */
+
+.btn-confirm-leave {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 10px;
+    border: none;
+    background: #1D9E75;
+    color: #E1F5EE;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.1s ease, transform 0.08s ease;
+}
+
+    .btn-confirm-leave:hover {
+        background: #0F6E56;
+    }
+
+    .btn-confirm-leave:active {
+        transform: scale(0.98);
+    }
+
+    .btn-confirm-leave:focus-visible {
+        outline: 2px solid #1D9E75;
+        outline-offset: 2px;
+    }
+
+/* Secondary — stay */
+
+.btn-confirm-stay {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 10px;
+    border: 0.5px solid rgba(0, 0, 0, 0.15);
+    background: transparent;
+    color: #888;
+    font-size: 15px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background 0.1s ease, transform 0.08s ease;
+}
+
+    .btn-confirm-stay:hover {
+        background: #f5f5f3;
+        color: #555;
+    }
+
+    .btn-confirm-stay:active {
+        transform: scale(0.98);
+    }
+
+    .btn-confirm-stay:focus-visible {
+        outline: 2px solid rgba(0, 0, 0, 0.3);
+        outline-offset: 2px;
+    }
+
+/* ----- Success state (add .success to .leave-confirm-sheet) ----- */
+
+.leave-confirm-sheet.success .leave-confirm-icon {
+    background: #E1F5EE;
+    border-color: #5DCAA5;
+}
+
+    .leave-confirm-sheet.success .leave-confirm-icon i {
+        color: #1D9E75;
+    }
+
+/* ----- Dark mode ----- */
+
+@media (prefers-color-scheme: dark) {
+    .leave-confirm-overlay {
+        background: rgba(0, 0, 0, 0.6);
+    }
+
+    .leave-confirm-sheet {
+        background: #1e1e1e;
+    }
+
+    .leave-confirm-handle {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .leave-confirm-icon {
+        background: #2a2a2a;
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+        .leave-confirm-icon i {
+            color: #aaa;
+        }
+
+    .leave-confirm-title {
+        color: #f0f0f0;
+    }
+
+    .leave-confirm-sub {
+        color: #777;
+    }
+
+    .btn-confirm-leave {
+        background: #1D9E75;
+        color: #E1F5EE;
+    }
+
+        .btn-confirm-leave:hover {
+            background: #0F6E56;
+        }
+
+    .btn-confirm-stay {
+        border-color: rgba(255, 255, 255, 0.1);
+        color: #666;
+    }
+
+        .btn-confirm-stay:hover {
+            background: #2a2a2a;
+            color: #aaa;
+        }
+
+    .leave-confirm-sheet.success .leave-confirm-icon {
+        background: #0a2e22;
+        border-color: #0F6E56;
+    }
+}
+
+/* ----- Reduced motion ----- */
+
+@media (prefers-reduced-motion: reduce) {
+    .leave-confirm-overlay,
+    .leave-confirm-sheet {
+        transition: none;
     }
 }

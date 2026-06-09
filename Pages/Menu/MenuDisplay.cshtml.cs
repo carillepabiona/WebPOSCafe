@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using WebPOSCafe.Data;
 using WebPOSCafe.Models;
 
@@ -10,6 +12,10 @@ namespace WebPOSCafe.Pages.Menu
     {
         private readonly AppDbContext _db;
 
+        // In MenuDisplayModel.cshtml.cs
+        [BindProperty(SupportsGet = true)]
+        public string Table { get; set; }
+
 
         public MenuDisplayModel(AppDbContext db)
         {
@@ -17,12 +23,23 @@ namespace WebPOSCafe.Pages.Menu
         }
 
         [BindProperty(SupportsGet = true)]
-        public string Table { get; set; } = "";   // ? reads ?table=5 from URL
+        public string Token { get; set; } = "";
+      
         public List<Category> Categories { get; set; } = new();
         public List<MenuItem> MenuItems { get; set; } = new();
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(string table, string token)
         {
+            Table = table;
+            Token = token;
+            // If no token in URL and no session cookie fallback, 
+            // we let the JS handle it client-side.
+            // But store the token in a TempData so JS can read it.
+            if (!string.IsNullOrEmpty(Token))
+            {
+                TempData["qr_token"] = Token;
+            }
+
             Categories = await _db.Categories
                 .Where(c => c.IsActive && !c.IsDeleted)
                 .OrderBy(c => c.DisplayOrder)
@@ -39,6 +56,8 @@ namespace WebPOSCafe.Pages.Menu
                 .OrderBy(m => m.Category.DisplayOrder)
                     .ThenBy(m => m.DisplayOrder)
                 .ToListAsync();
+
+            return;
         }
     }
 }

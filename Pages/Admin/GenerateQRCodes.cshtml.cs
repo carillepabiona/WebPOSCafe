@@ -1,30 +1,53 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using QRCoder;
+using WebPOSCafe.Data;
 
 namespace WebPOSCafe.Pages.Admin
 {
     public class GenerateQRCodesModel : PageModel
     {
+        private readonly AppDbContext _db;
+
+        public GenerateQRCodesModel(AppDbContext db)
+        {
+            _db = db;
+        }
+
         public List<TableQRCode> QRCodes { get; set; } = new();
 
         public void OnGet()
         {
-            string baseUrl = "http://192.168.254.114:5292";
+            string baseUrl = "http://192.168.254.101:5292";
 
-            for (int tableNo = 1; tableNo <= 20; tableNo++)
+            var tables = _db.Tables
+                            .OrderBy(t => t.TableNumber)
+                            .ToList();
+
+            bool anyUpdated = false;
+
+            foreach (var table in tables)
             {
-                string url = $"{baseUrl}/Menu/MenuDisplay?table={tableNo}";
+                // ── FIX: ensure every table has a token ──
+                if (string.IsNullOrWhiteSpace(table.QRToken))
+                {
+                    table.QRToken = Guid.NewGuid().ToString("N")[..12].ToUpper();
+                    anyUpdated = true;
+                }
 
-                string qrCodeBase64 = GenerateQRCode(url);
+                string url = $"{baseUrl}/Menu/MenuDisplay?table={table.TableNumber}&token={table.QRToken}";
 
                 QRCodes.Add(new TableQRCode
                 {
-                    TableNumber = tableNo,
+                    TableNumber = table.TableNumber,
                     Url = url,
-                    QRCodeBase64 = qrCodeBase64
+                    QRCodeBase64 = GenerateQRCode(url)
                 });
             }
+
+            // Save any newly generated tokens back to the DB
+            if (anyUpdated)
+                _db.SaveChanges();
         }
 
         private string GenerateQRCode(string url)
@@ -35,11 +58,9 @@ namespace WebPOSCafe.Pages.Admin
                 qrGenerator.CreateQrCode(url,
                     QRCodeGenerator.ECCLevel.Q);
 
-            PngByteQRCode qrCode =
-                new(qrCodeData);
+            PngByteQRCode qrCode = new(qrCodeData);
 
-            byte[] qrBytes =
-                qrCode.GetGraphic(20);
+            byte[] qrBytes = qrCode.GetGraphic(20);
 
             return Convert.ToBase64String(qrBytes);
         }
@@ -47,9 +68,7 @@ namespace WebPOSCafe.Pages.Admin
         public class TableQRCode
         {
             public int TableNumber { get; set; }
-
             public string Url { get; set; } = "";
-
             public string QRCodeBase64 { get; set; } = "";
         }
     }
