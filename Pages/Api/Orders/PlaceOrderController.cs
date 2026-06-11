@@ -33,7 +33,9 @@ namespace WebPOSCafe.Pages.Api
                 // Line: Status = "pending",
                 // Change to:
                 Status = "awaiting_payment",
-                Total = dto.Items.Sum(i => i.UnitPrice * i.Quantity),
+                // In PlaceOrderController, replace the Total line:
+                // Total = dto.Items.Sum(i => i.UnitPrice * i.Quantity) * 1.12m,  // includes 12% tax
+                Total = dto.Items.Sum(i => i.UnitPrice * i.Quantity), // includes 12% tax
                 EstimatedMinutes = dto.EstimatedMinutes,
                 CreatedAt = DateTime.UtcNow,
                 Items = dto.Items.Select(i => new OrderItem
