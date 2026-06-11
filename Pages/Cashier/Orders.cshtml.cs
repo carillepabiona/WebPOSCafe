@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using WebPOSCafe.Data;         // ← your DbContext namespace
+using WebPOSCafe.Data;
+using WebPOSCafe.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace WebPOSCafe.Pages.Cashier
@@ -17,7 +18,7 @@ namespace WebPOSCafe.Pages.Cashier
         public string SelectedFilter { get; set; } = "all";
 
         [BindProperty(SupportsGet = true)]
-        public string SelectedTab { get; set; } = "all";  // was "dine-in"
+        public string SelectedTab { get; set; } = "all";
 
         // ── View Models ────────────────────────────────────────────────────
         public class OrderItemView
@@ -55,9 +56,28 @@ namespace WebPOSCafe.Pages.Cashier
         public IActionResult OnPostUpdateStatus(int orderId, string newStatus,
                                                 string selectedTab, string selectedFilter)
         {
-            var order = _db.Orders.Find(orderId);
+            var order = _db.Orders
+                .Include(o => o.Items)
+                .FirstOrDefault(o => o.Id == orderId);
+
             if (order != null)
             {
+                // ── Record payment when cashier marks as paid ──────────────
+                if (newStatus == "pending" && order.Status == "awaiting_payment")
+                {
+                    var payment = new Payment
+                    {
+                        OrderId = order.Id,
+                        OrderNumber = order.OrderNumber ?? "",
+                        TableNumber = order.TableNumber ?? "",
+                        CustomerName = order.CustomerName ?? "",
+                        Type = order.Type ?? "",
+                        Amount = order.Total,
+                        PaidAt = DateTime.Now
+                    };
+                    _db.Payments.Add(payment);
+                }
+
                 order.Status = newStatus;
                 _db.SaveChanges();
             }
@@ -122,10 +142,12 @@ namespace WebPOSCafe.Pages.Cashier
 
             filtered = SelectedTab switch
             {
-                "dine-in" => filtered.Where(o => o.Type == "dine-in" && o.Status != "paid" && o.Status != "served"),
-                "take-out" => filtered.Where(o => o.Type == "take-out" && o.Status != "paid" && o.Status != "served"),
+                "dine-in" => filtered.Where(o => o.Type == "dine-in"
+                                   && o.Status != "paid" && o.Status != "served"),
+                "take-out" => filtered.Where(o => o.Type == "take-out"
+                                   && o.Status != "paid" && o.Status != "served"),
                 "completed" => filtered.Where(o => o.Status == "paid" || o.Status == "served"),
-                "all" => filtered.Where(o => o.Status != "paid" && o.Status != "served"),  // ← add this
+                "all" => filtered.Where(o => o.Status != "paid" && o.Status != "served"),
                 _ => filtered
             };
 

@@ -219,7 +219,7 @@
             <div class="success-body" id="postorder-pending">
                 <div class="success-icon" aria-hidden="true">☕✨</div>
                 <h2 class="success-title">Order Placed!</h2>
-                <p class="success-sub">Your order is confirmed. Call staff when you're ready to pay.</p>
+                <p class="success-sub">Your order is confirmed. Call a staff for your payment.</p>
                 <div class="order-number" id="postorder-number"></div>
                 <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.5rem" id="postorder-details"></div>
 
@@ -227,14 +227,21 @@
                 <button class="btn-callstaff-trigger"
                         id="btn-postorder-callstaff"
                         onclick="doPostOrderCallStaff()"
-                        style="width:100%;margin-bottom:10px">
+                        style="width:100%;
+                    margin-bottom:10px;
+                    background:#ff6b00;
+                    color:#fff;
+                    border:none;
+                    padding:12px 16px;
+                    border-radius:8px;
+                    font-weight:600;
+                    cursor:pointer;
+                    transition:0.2s;"
+                        onmouseover="this.style.background='#e65c00'"
+                        onmouseout="this.style.background='#ff6b00'">
                     🔔 Call Staff for Payment
                 </button>
 
-                <!-- SECONDARY: Go back to menu to add more items -->
-                <button class="btn-back-menu" onclick="closePostOrderModal()">
-                    Browse Menu (pay later)
-                </button>
             </div>
 
             <!-- PANEL 2 — Staff has been notified. Show elapsed timer. No close. -->
@@ -248,21 +255,44 @@
 
             <!-- PANEL 3 — Payment confirmed. Session over. Done = free the table. -->
             <div class="success-body" id="postorder-done" style="display:none">
-                <div class="success-icon" aria-hidden="true">✅🎉</div>
                 <h2 class="success-title">All done — enjoy!</h2>
-                <p class="success-sub">Payment confirmed. Thank you for visiting Verso Cafe!</p>
+                <p class="success-sub">Payment confirmed. Thank you for for Ordering!</p>
                 <div class="order-number" id="postorder-done-number"></div>
 
-                <!-- PRIMARY: Free the table and end the session -->
+            <!-- PRIMARY: Free the table and end the session -->
                 <button class="btn-add-to-cart"
-                        style="width:100%;margin-bottom:10px;background:var(--brand)"
+                        style="width:100%;
+                    margin-bottom:10px;
+                    background:#ff7a00;
+                    color:white;
+                    border:none;
+                    padding:12px 16px;
+                    border-radius:8px;
+                    font-weight:600;
+                    cursor:pointer;"
                         onclick="markTableAvailable()">
-                    🚪 Done — Free This Table
+                    ✅ Done &amp; Leaving — Free the Table
                 </button>
 
-                <!-- SECONDARY: Browse more (edge case — e.g. customer wants another round) -->
+                <!-- NEW: Staying at table, no more orders -->
+                <button class="btn-add-to-cart"
+                        id="btn-staying-done"
+                        style="width:100%;
+                    margin-bottom:10px;
+                    background:#ffffff;
+                    color:#ff7a00;
+                    border:2px solid #ff7a00;
+                    padding:12px 16px;
+                    border-radius:8px;
+                    font-weight:600;
+                    cursor:pointer;"
+                        onclick="stayAtTable()">
+                    ☕ Staying — Just Relaxing
+                </button>
+
+                <!-- SECONDARY: Browse more (another round) -->
                 <button class="btn-back-menu" onclick="closePostOrderDone()">
-                    Back to Menu
+                    🛍 Order Something Else
                 </button>
             </div>
 
@@ -1024,35 +1054,38 @@
                             `${m}:${String(s).padStart(2, '0')}`;
                     }, 1000);
 
-                    // ── Begin KDS polling every 4 seconds ──
-                    postOrderPolling = setInterval(async () => {
-                        try {
-                            const r    = await fetch('/api/kds/orders-all');
-                            const list = await r.json();
-                            const match = list.find(o => o.orderNumber === postOrderNumber);
+            postOrderPolling = setInterval(async () => {
+                try {
+                    const r    = await fetch('/api/kds/orders-all');
+                    const list = await r.json();
+                    const match = list.find(o => o.orderNumber === postOrderNumber);
 
-                            if (!match) {
-                                // Order removed from KDS (completed/paid off-system).
-                                clearInterval(postOrderPolling);
-                                clearInterval(postOrderTimerInterval);
-                                showPostOrderDone();
-                            } else if (['completed', 'paid', 'served'].includes(match.status)) {
-                                // Staff marked it done or paid.
-                                clearInterval(postOrderPolling);
-                                clearInterval(postOrderTimerInterval);
-                                updateOrderStatusLocal(postOrderNumber, 'Completed');
-                                showPostOrderDone();
-                            } else if (match.status === 'cancelled') {
-                                clearInterval(postOrderPolling);
-                                clearInterval(postOrderTimerInterval);
-                                updateOrderStatusLocal(postOrderNumber, 'Cancelled');
-                                document.getElementById('postorder-modal').classList.remove('open');
-                                toast('Your order was cancelled by staff.');
-                                openOrders();
-                            }
-                            // For pending/preparing/ready: keep waiting.
-                        } catch(e) { /* silent — keep polling on transient network errors */ }
-                    }, 4000);
+                    if (!match) {
+                        // Order removed from KDS entirely.
+                        clearInterval(postOrderPolling);
+                        clearInterval(postOrderTimerInterval);
+                        showPostOrderDone();
+
+                    } else if (['pending', 'preparing', 'ready', 'completed', 'paid', 'served'].includes(match.status)) {
+                        // ✅ FIX: 'pending' added — cashier's "Mark as Paid → Send to Kitchen"
+                        // sets status to 'pending', which means payment was confirmed.
+                        clearInterval(postOrderPolling);
+                        clearInterval(postOrderTimerInterval);
+                        updateOrderStatusLocal(postOrderNumber, 'Completed');
+                        showPostOrderDone();
+
+                    } else if (match.status === 'cancelled') {
+                        clearInterval(postOrderPolling);
+                        clearInterval(postOrderTimerInterval);
+                        updateOrderStatusLocal(postOrderNumber, 'Cancelled');
+                        document.getElementById('postorder-modal').classList.remove('open');
+                        toast('Your order was cancelled by staff.');
+                        openOrders();
+                    }
+                    // 'awaiting_payment' = still waiting for cashier → keep polling.
+
+                } catch(e) { /* silent — keep polling on transient errors */ }
+            }, 4000);
 
                 } catch (err) {
                     toast('Could not reach staff: ' + err.message);
@@ -1079,6 +1112,24 @@
                     saveOrders();
                     updateOrdersDot();
                 }
+            }
+
+             // ══════════════════════════════════════════════════════════════════
+            // DONE ORDERING BUT WILL STAY AT TABLE
+            // ══════════════════════════════════════════════════════════════════
+            function stayAtTable() {
+                document.getElementById('postorder-modal').classList.remove('open');
+
+                // Reset modal panels for next order
+                document.getElementById('postorder-pending').style.display = '';
+                document.getElementById('postorder-waiting').style.display = 'none';
+                document.getElementById('postorder-done').style.display    = 'none';
+
+                clearInterval(postOrderPolling);
+                clearInterval(postOrderTimerInterval);
+
+
+                toast('Enjoy your stay! Feel free to order again.');
             }
 
             // ══════════════════════════════════════════════════════════════════
@@ -1162,7 +1213,7 @@
             // Used for Ready/Served orders outside the primary checkout flow.
             // This path still has a Cancel button (it's not the checkout gate).
             // ══════════════════════════════════════════════════════════════════
-                        function openCallStaff(orderNumber) {
+             function openCallStaff(orderNumber) {
                 callStaffOrderNumber = orderNumber;
                 const o = orders.find(o => o.orderId === orderNumber);
                 if (o) {

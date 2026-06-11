@@ -10,7 +10,6 @@ public class DashboardController : ControllerBase
     private readonly AppDbContext _db;
     public DashboardController(AppDbContext db) => _db = db;
 
-    // GET /api/dashboard/summary
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
@@ -21,18 +20,22 @@ public class DashboardController : ControllerBase
             .Where(o => o.CreatedAt >= today && o.CreatedAt < tomorrow)
             .ToListAsync();
 
-        var totalSales = todayOrders.Where(o => o.Status != "Cancelled").Sum(o => o.Total);
-        var totalOrders = todayOrders.Count;
-        var pendingOrders = todayOrders.Count(o => o.Status == "Pending");
-        var completedOrders = todayOrders.Count(o => o.Status == "Completed");
-        var avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+        // lowercase to match DB values
+        var cancelledStatuses = new[] { "cancelled" };
+        var completedStatuses = new[] { "paid", "served", "completed" };
+        var pendingStatuses = new[] { "pending", "awaiting_payment" };
 
+        var validOrders = todayOrders.Where(o => !cancelledStatuses.Contains(o.Status)).ToList();
+        var totalSales = validOrders.Sum(o => o.Total);
+        var totalOrders = todayOrders.Count;
+        var pendingOrders = todayOrders.Count(o => pendingStatuses.Contains(o.Status));
+        var completedOrders = todayOrders.Count(o => completedStatuses.Contains(o.Status));
+        var avgOrderValue = validOrders.Any() ? validOrders.Average(o => o.Total) : 0;
+
+        var validOrderIds = validOrders.Select(o => o.Id).ToHashSet();
         var totalItemsSold = await _db.OrderItems
-            .Where(oi => _db.Orders
-                .Where(o => o.CreatedAt >= today && o.CreatedAt < tomorrow && o.Status != "Cancelled")
-                .Select(o => o.Id)
-                .Contains(oi.OrderId))
-            .SumAsync(oi => oi.Quantity);
+            .Where(oi => validOrderIds.Contains(oi.OrderId))
+            .SumAsync(oi => (int?)oi.Quantity) ?? 0;
 
         var tables = await _db.Tables.ToListAsync();
         var totalTables = tables.Count;
@@ -53,7 +56,6 @@ public class DashboardController : ControllerBase
         });
     }
 
-    // GET /api/dashboard/recent-orders
     [HttpGet("recent-orders")]
     public async Task<IActionResult> GetRecentOrders()
     {
@@ -64,34 +66,38 @@ public class DashboardController : ControllerBase
             .Where(o => o.CreatedAt >= today && o.CreatedAt < tomorrow)
             .OrderByDescending(o => o.CreatedAt)
             .Take(10)
-            .Select(o => new {
-                o.OrderNumber,
-                o.CustomerName,
-                o.TableNumber,
-                o.Status,
-                o.Total,
-                TotalAmount = o.Total,
-                o.CreatedAt
+            .Select(o => new
+            {
+                orderNumber = o.OrderNumber,
+                customerName = o.CustomerName,
+                tableNumber = o.TableNumber,
+                status = o.Status,
+                totalAmount = o.Total,
+                createdAt = o.CreatedAt
             })
             .ToListAsync();
 
         return Ok(orders);
     }
 
-    // GET /api/dashboard/top-items
     [HttpGet("top-items")]
     public async Task<IActionResult> GetTopItems()
     {
         var today = DateTime.Today;
         var tomorrow = today.AddDays(1);
 
+        // Pull valid order IDs first to avoid subquery translation issues
+        var validOrderIds = await _db.Orders
+            .Where(o => o.CreatedAt >= today && o.CreatedAt < tomorrow
+                     && o.Status != "cancelled")
+            .Select(o => o.Id)
+            .ToListAsync();
+
         var topItems = await _db.OrderItems
-            .Where(oi => _db.Orders
-                .Where(o => o.CreatedAt >= today && o.CreatedAt < tomorrow && o.Status != "Cancelled")
-                .Select(o => o.Id)
-                .Contains(oi.OrderId))
+            .Where(oi => validOrderIds.Contains(oi.OrderId))
             .GroupBy(oi => oi.Name)
-            .Select(g => new {
+            .Select(g => new
+            {
                 name = g.Key,
                 qtySold = g.Sum(x => x.Quantity),
                 revenue = g.Sum(x => x.Price * x.Quantity)

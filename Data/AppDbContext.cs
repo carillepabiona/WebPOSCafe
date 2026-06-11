@@ -26,6 +26,8 @@ namespace WebPOSCafe.Data
 
         public DbSet<CafeTable> Tables { get; set; }
 
+        public DbSet<Payment> Payments { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // MenuItemCustomization composite key
